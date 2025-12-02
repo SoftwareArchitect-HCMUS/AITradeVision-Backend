@@ -5,6 +5,7 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
   MessageBody,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -58,8 +59,9 @@ export class PriceGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload - Subscription payload with symbol
    */
   @SubscribeMessage('subscribe_price')
-  handleSubscribePrice(client: Socket, @MessageBody() payload: { symbol: string }): void {
+  handleSubscribePrice(@ConnectedSocket() client: Socket, @MessageBody() payload: { symbol: string }): void {
     const symbol = payload.symbol?.toUpperCase();
+    console.log('Subscribing to symbol:', symbol);
     if (!symbol) {
       client.emit('error', { message: 'Symbol is required' });
       return;
@@ -85,7 +87,7 @@ export class PriceGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param payload - Unsubscription payload with symbol
    */
   @SubscribeMessage('unsubscribe_price')
-  handleUnsubscribePrice(client: Socket, @MessageBody() payload: { symbol: string }): void {
+  handleUnsubscribePrice(@ConnectedSocket() client: Socket, @MessageBody() payload: { symbol: string }): void {
     const symbol = payload.symbol?.toUpperCase();
     if (!symbol) {
       return;

@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/commo
 import * as WebSocket from 'ws';
 import { RedisService } from '../redis/redis.service';
 import { DatabaseService } from '../database/database.service';
-import { PriceUpdate, TickData } from '@shared/types/common.types';
+import { PriceUpdate, TickData, OHLCVData } from '@shared/types/common.types';
 
 /**
  * Binance WebSocket service for real-time price collection
@@ -16,6 +16,7 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
   private readonly maxReconnectAttempts = 10;
   private readonly reconnectDelay = 5000; // 5 seconds
   private symbols: string[] = [];
+  private readonly timeframes: string[] = ['1m', '5m']; // Supported Kline intervals
   private isShuttingDown = false;
 
   constructor(
@@ -59,8 +60,15 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
     if (this.isShuttingDown) return;
 
     try {
-      const streams = this.symbols.map(s => `${s}@aggTrade`).join('/');
-      const url = `${process.env.BINANCE_WS_URL || 'wss://fstream.binance.com/ws'}/${streams}`;
+      // Build streams for all symbols and timeframes: btcusdt@kline_1m/btcusdt@kline_5m/ethusdt@kline_1m/...
+      const streams: string[] = [];
+      for (const symbol of this.symbols) {
+        for (const timeframe of this.timeframes) {
+          streams.push(`${symbol.toLowerCase()}@kline_${timeframe}`);
+        }
+      }
+      const streamsPath = streams.join('/');
+      const url = `${process.env.BINANCE_WS_URL || 'wss://fstream.binance.com/stream'}?streams=${streamsPath}`;
 
       this.futuresWS = new WebSocket(url);
 
@@ -96,8 +104,16 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
     if (this.isShuttingDown) return;
 
     try {
-      const streams = this.symbols.map(s => `${s}@ticker`).join('/');
-      const url = `${process.env.BINANCE_SPOT_WS_URL || 'wss://stream.binance.com:9443/ws'}/${streams}`;
+      // Build streams for all symbols and timeframes: btcusdt@kline_1m/btcusdt@kline_5m/ethusdt@kline_1m/...
+      const streams: string[] = [];
+      for (const symbol of this.symbols) {
+        for (const timeframe of this.timeframes) {
+          streams.push(`${symbol.toLowerCase()}@kline_${timeframe}`);
+        }
+      }
+      const streamsPath = streams.join('/');
+      const url = `${process.env.BINANCE_SPOT_WS_URL || 'wss://stream.binance.com:9443/stream'}?streams=${streamsPath}`;
+      console.log('Binance Spot WebSocket URL:', url);
 
       this.spotWS = new WebSocket(url);
 
@@ -132,35 +148,55 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
   private async handleFuturesMessage(message: string): Promise<void> {
     try {
       const data = JSON.parse(message);
-      
-      if (data.e === 'aggTrade') {
-        const symbol = data.s.toUpperCase();
-        const price = parseFloat(data.p);
-        const volume = parseFloat(data.q);
-        const timestamp = data.T;
-        const side = data.m ? 'sell' : 'buy'; // m=true means seller is maker
 
-        // Create tick data
+      if (data.e === 'kline' && data.k) {
+        const kline = data.k;
+        const symbol = kline.s.toUpperCase();
+        const interval = kline.i; // e.g., '1m', '5m'
+        const isClosed = kline.x; // true when candle is closed
+        
+        // Extract OHLCV data
+        const ohlcv: OHLCVData = {
+          symbol,
+          interval,
+          timestamp: kline.t, // Open time
+          open: parseFloat(kline.o),
+          high: parseFloat(kline.h),
+          low: parseFloat(kline.l),
+          close: parseFloat(kline.c),
+          volume: parseFloat(kline.v),
+        };
+
+        // Store OHLCV in database (only when candle is closed for accuracy)
+        if (isClosed) {
+          await this.databaseService.insertOHLCV(ohlcv);
+        }
+
+        // Create tick data from close price (for backward compatibility)
         const tick: TickData = {
           symbol,
-          price,
-          volume,
-          timestamp,
-          side,
+          price: ohlcv.close,
+          volume: ohlcv.volume,
+          timestamp: kline.T || Date.now(), // Close time or current time
+          side: ohlcv.close >= ohlcv.open ? 'buy' : 'sell', // Approximate side based on price movement
         };
 
-        // Store in database
-        await this.databaseService.insertTick(tick);
+        // Store tick in database (only when candle is closed)
+        if (isClosed) {
+          await this.databaseService.insertTick(tick);
+        }
 
-        // Publish price update
+        // Publish price update to Redis (always, for real-time updates)
         const priceUpdate: PriceUpdate = {
           symbol,
-          price,
-          timestamp,
-          volume,
+          price: ohlcv.close,
+          timestamp: kline.T || Date.now(),
+          volume: ohlcv.volume,
         };
 
+        console.log('Price update:', priceUpdate);
         await this.redisService.publishPriceUpdate(priceUpdate);
+        console.log('Price update published to Redis');
       }
     } catch (error) {
       this.logger.error('Error handling futures message', error);
@@ -173,22 +209,53 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
    */
   private async handleSpotMessage(message: string): Promise<void> {
     try {
-      const data = JSON.parse(message);
-      
-      if (data.e === '24hrTicker') {
-        const symbol = data.s.toUpperCase();
-        const price = parseFloat(data.c); // Last price
-        const volume24h = parseFloat(data.v);
-        const change24h = parseFloat(data.P);
-        const timestamp = Date.now();
+      const payload = JSON.parse(message);
+      const data = payload.data || payload;
 
-        // Publish price update
+      if (data.e === 'kline' && data.k) {
+        const kline = data.k;
+        const symbol = kline.s.toUpperCase();
+        const interval = kline.i; // e.g., '1m', '5m'
+        const isClosed = kline.x; // true when candle is closed
+        
+        // Extract OHLCV data
+        const ohlcv: OHLCVData = {
+          symbol,
+          interval,
+          timestamp: kline.t, // Open time
+          open: parseFloat(kline.o),
+          high: parseFloat(kline.h),
+          low: parseFloat(kline.l),
+          close: parseFloat(kline.c),
+          volume: parseFloat(kline.v),
+        };
+
+        // Store OHLCV in database (only when candle is closed for accuracy)
+        console.log('isClosed:', isClosed);
+        if (isClosed) {
+          await this.databaseService.insertOHLCV(ohlcv);
+        }
+
+        // Create tick data from close price (for backward compatibility)
+        const tick: TickData = {
+          symbol,
+          price: ohlcv.close,
+          volume: ohlcv.volume,
+          timestamp: kline.T || Date.now(), // Close time or current time
+          side: ohlcv.close >= ohlcv.open ? 'buy' : 'sell', // Approximate side based on price movement
+        };
+
+        // Store tick in database (only when candle is closed)
+        if (isClosed) {
+          await this.databaseService.insertTick(tick);
+        }
+
+        // Publish price update to Redis (always, for real-time updates)
         const priceUpdate: PriceUpdate = {
           symbol,
-          price,
-          timestamp,
-          volume24h,
-          change24h,
+          price: ohlcv.close,
+          timestamp: kline.T || Date.now(),
+          volume: ohlcv.volume,
         };
 
         await this.redisService.publishPriceUpdate(priceUpdate);
