@@ -1,0 +1,241 @@
+version: '3.8'
+
+services:
+  # Redis for Pub/Sub and BullMQ
+  redis:
+    image: redis:7-alpine
+    container_name: crypto-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - crypto-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for main database (users, news, ai_insights)
+  postgres_main:
+    image: postgres:15-alpine
+    container_name: crypto-postgres-main
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-crypto_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crypto_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-crypto_main}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-main-data:/var/lib/postgresql/data
+      - ./scripts/init-main-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - crypto-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crypto_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # TimescaleDB for OHLCV and tick data
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: crypto-timescaledb
+    environment:
+      POSTGRES_USER: ${TIMESCALE_USER:-timescale_user}
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_pass}
+      POSTGRES_DB: ${TIMESCALE_DB:-timescale_db}
+    ports:
+      - "5433:5432"
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+      - ./scripts/init-timescale-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - crypto-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TIMESCALE_USER:-timescale_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant vector database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: crypto-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - crypto-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO object storage
+  minio:
+    image: minio/minio:latest
+    container_name: crypto-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - crypto-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Crawler Service
+  crawler-service:
+    build:
+      context: .
+      dockerfile: apps/crawler/Dockerfile
+    container_name: crypto-crawler
+    environment:
+      NODE_ENV: production
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      POSTGRES_HOST: postgres_main
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-crypto_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crypto_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-crypto_main}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: raw-html
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres_main:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - crypto-network
+    restart: unless-stopped
+
+  # Price Collector Service
+  price-collector-service:
+    build:
+      context: .
+      dockerfile: apps/price-collector/Dockerfile
+    container_name: crypto-price-collector
+    environment:
+      NODE_ENV: production
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      TIMESCALE_HOST: timescaledb
+      TIMESCALE_PORT: 5432
+      TIMESCALE_USER: ${TIMESCALE_USER:-timescale_user}
+      TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_pass}
+      TIMESCALE_DB: ${TIMESCALE_DB:-timescale_db}
+      BINANCE_WS_URL: wss://fstream.binance.com/ws
+      BINANCE_SPOT_WS_URL: wss://stream.binance.com:9443/ws
+    depends_on:
+      redis:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    networks:
+      - crypto-network
+    restart: unless-stopped
+
+  # Web Server API
+  web-server:
+    build:
+      context: .
+      dockerfile: apps/web-server/Dockerfile
+    container_name: crypto-web-server
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      POSTGRES_HOST: postgres_main
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-crypto_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crypto_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-crypto_main}
+      TIMESCALE_HOST: timescaledb
+      TIMESCALE_PORT: 5432
+      TIMESCALE_USER: ${TIMESCALE_USER:-timescale_user}
+      TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_pass}
+      TIMESCALE_DB: ${TIMESCALE_DB:-timescale_db}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres_main:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+    networks:
+      - crypto-network
+    restart: unless-stopped
+
+  # AI Service
+  ai-service:
+    build:
+      context: .
+      dockerfile: apps/ai-service/Dockerfile
+    container_name: crypto-ai-service
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      POSTGRES_HOST: postgres_main
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-crypto_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crypto_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-crypto_main}
+      TIMESCALE_HOST: timescaledb
+      TIMESCALE_PORT: 5432
+      TIMESCALE_USER: ${TIMESCALE_USER:-timescale_user}
+      TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_pass}
+      TIMESCALE_DB: ${TIMESCALE_DB:-timescale_db}
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres_main:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - crypto-network
+    restart: unless-stopped
+
+networks:
+  crypto-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-main-data:
+  timescaledb-data:
+  qdrant-data:
+  minio-data:
+

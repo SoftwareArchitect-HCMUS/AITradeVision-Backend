@@ -1,0 +1,31 @@
+{
+  "name": "crypto-analytics-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TradingView-like crypto analytics platform with AI analysis",
+  "workspaces": [
+    "apps/*",
+    "libs/*"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "start:dev": "pnpm -r start:dev",
+    "start:prod": "pnpm -r start:prod",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "dev:shared": "pnpm --filter @shared/core start:dev",
+    "dev:web": "pnpm --filter @crypto/web-server start:dev",
+    "dev:crawler": "pnpm --filter @crypto/crawler-service start:dev",
+    "dev:price": "pnpm --filter @crypto/price-collector-service start:dev",
+    "dev:ai": "pnpm --filter @crypto/ai-service start:dev"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "~4.9.5"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
+

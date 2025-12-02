@@ -1,0 +1,42 @@
+{
+  "name": "@crypto/crawler-service",
+  "version": "1.0.0",
+  "description": "Crawler service for financial news",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main.js",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.2.10",
+    "@nestjs/core": "^10.2.10",
+    "@nestjs/bullmq": "^10.0.1",
+    "@nestjs/config": "^3.1.1",
+    "@nestjs/typeorm": "^10.0.1",
+    "bullmq": "^5.3.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.0",
+    "ioredis": "^5.3.2",
+    "pg": "^8.11.3",
+    "typeorm": "^0.3.17",
+    "axios": "^1.6.2",
+    "cheerio": "^1.0.0-rc.12",
+    "minio": "^7.1.3",
+    "jsdom": "^23.0.1",
+    "xpath": "^0.0.33",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.1",
+    "@shared/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.2.1",
+    "@nestjs/schematics": "^10.0.3",
+    "@types/node": "^20.10.0",
+    "@types/pg": "^8.10.9",
+    "typescript": "~4.9.5"
+  }
+}
+

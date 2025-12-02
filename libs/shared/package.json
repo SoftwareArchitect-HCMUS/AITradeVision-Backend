@@ -1,0 +1,19 @@
+{
+  "name": "@shared/core",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start:dev": "tsc --watch"
+  },
+  "dependencies": {
+    "class-validator": "^0.14.0",
+    "class-transformer": "^0.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "~4.9.5"
+  }
+}
+
