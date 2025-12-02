@@ -27,6 +27,16 @@ This platform provides real-time cryptocurrency market data, financial news aggr
 
 ## Architecture
 
+### System Architecture Diagram
+
+![System Architecture](docs/architect.png)
+
+*Architecture diagram showing the interaction between services, databases, and external systems*
+
+> **Note**: Place your architecture diagram image in the `docs/` directory and name it `architecture.png` (or update the path above to match your image file).
+
+### Microservices Overview
+
 The system consists of 4 main microservices:
 
 1. **Crawler Service** - Crawls financial news from multiple sources
