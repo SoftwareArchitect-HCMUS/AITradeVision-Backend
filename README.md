@@ -74,7 +74,7 @@ The system consists of 4 main microservices:
 1. **Clone the repository**
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/SoftwareArchitect-HCMUS/AITradeVision-Backend.git
 cd FinalProject
 ```
 
@@ -141,9 +141,20 @@ This will start:
 4. **Access services**
 
 - Web Server API: http://localhost:3000
+- **Swagger API Documentation**: http://localhost:3000/api
 - AI Service: http://localhost:3001
 - MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
 - Qdrant Dashboard: http://localhost:6333/dashboard
+
+## API Documentation
+
+**Swagger UI**: Access the interactive API documentation at http://localhost:3000/api
+
+The Swagger documentation provides:
+- Complete API endpoint descriptions
+- Request/response schemas
+- Try-it-out functionality
+- JWT authentication support
 
 ## API Endpoints
 
