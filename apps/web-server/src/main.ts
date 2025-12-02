@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { AppModule } from './app.module';
 
 /**
@@ -8,6 +9,9 @@ import { AppModule } from './app.module';
  */
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  
+  // Use WebSocket adapter (native WebSocket instead of Socket.IO)
+  app.useWebSocketAdapter(new WsAdapter(app));
   
   // Enable CORS
   app.enableCors({

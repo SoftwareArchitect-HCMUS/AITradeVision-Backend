@@ -40,9 +40,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   subscribeToPrice(symbol: string, callback: (update: PriceUpdate) => void): void {
     const channel = `${REDIS_CHANNELS.PRICE_UPDATE}.${symbol.toLowerCase()}`;
     
-    this.subscriber.subscribe(channel);
+    this.subscriber.subscribe(channel, (err, count) => {
+      if (err) {
+        this.logger.error(`❌ Failed to subscribe to channel: ${channel}`, err);
+      } else {
+        this.logger.log(`📡 Successfully subscribed to ${channel}. Total channels: ${count}`);
+      }
+    });
     
     this.subscriber.on('message', (ch, message) => {
+      this.logger.debug(`📨 Redis message received on ${ch}: ${message}`);
       if (ch === channel) {
         try {
           const update = JSON.parse(message) as PriceUpdate;

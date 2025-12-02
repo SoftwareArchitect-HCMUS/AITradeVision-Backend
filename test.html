@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WS Test</title>
+</head>
+<body>
+<script>
+  const ws = new WebSocket("ws://localhost:3000/ws");
+
+  ws.onopen = () => {
+    console.log("Connected");
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "BTCUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "ETHUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "SOLUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "XRPUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "DOGEUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "ADAUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "DOTUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "LINKUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "BNBUSDT" }));
+    ws.send(JSON.stringify({ type: "subscribe_price", symbol: "XLMUSDT" }));
+  };
+
+  ws.onmessage = (evt) => console.log("Received:", evt.data);
+
+  ws.onerror = (err) => console.error("WebSocket error:", err);
+</script>
+</body>
+</html>
