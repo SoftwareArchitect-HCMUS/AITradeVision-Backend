@@ -16,7 +16,7 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
   private readonly maxReconnectAttempts = 10;
   private readonly reconnectDelay = 5000; // 5 seconds
   private symbols: string[] = [];
-  private readonly timeframes: string[] = ['1m', '5m']; // Supported Kline intervals
+  private readonly timeframes: string[] = ['1m', '5m', '1h', '1d']; // Supported Kline intervals
   private isShuttingDown = false;
 
   constructor(

@@ -28,7 +28,7 @@ import { RedisModule } from './redis/redis.module';
       password: process.env.POSTGRES_PASSWORD || 'crypto_pass',
       database: process.env.POSTGRES_DB || 'crypto_main',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false,
+      synchronize: true,
       logging: false,
     }),
     TypeOrmModule.forRoot({
@@ -39,7 +39,7 @@ import { RedisModule } from './redis/redis.module';
       username: process.env.TIMESCALE_USER || 'timescale_user',
       password: process.env.TIMESCALE_PASSWORD || 'timescale_pass',
       database: process.env.TIMESCALE_DB || 'timescale_db',
-      synchronize: false,
+      synchronize: true,
       logging: false,
     }),
     RedisModule,

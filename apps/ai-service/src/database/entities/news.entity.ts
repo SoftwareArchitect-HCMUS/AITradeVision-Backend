@@ -32,7 +32,13 @@ export class NewsEntity {
   @Column({ type: 'text', unique: true })
   url!: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'minio_object_key' })
+  minioObjectKey?: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
 }
 

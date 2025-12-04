@@ -28,10 +28,10 @@ export class GeminiService {
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     // Note: Gemini embedding model may vary, adjust as needed
     try {
-      this.embeddingModel = this.genAI.getGenerativeModel({ model: 'embedding-001' });
+      this.embeddingModel = this.genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
     } catch {
       // Fallback if embedding model not available
       this.embeddingModel = null;
