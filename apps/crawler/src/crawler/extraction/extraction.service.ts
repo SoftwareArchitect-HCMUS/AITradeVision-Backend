@@ -68,23 +68,49 @@ export class ExtractionService {
 
       // Try source-specific strategy first
       const strategy = this.strategies.get(source) || this.genericStrategy;
+      const strategyName = source !== 'generic' ? source : 'generic';
 
-      // Strategy 1: CSS Selector (primary)
+      // Strategy 1: CSS Selector (primary) - source-specific
       let extracted = strategy.extractWithSelector($, url);
+      let usedStrategy = strategyName === 'generic' ? 'generic-selector' : `${strategyName}-selector`;
 
-      // Strategy 2: XPath fallback if CSS fails
-      if (!extracted || !extracted.fullText) {
+      // Strategy 2: XPath fallback if CSS fails (only for source-specific strategies)
+      if ((!extracted || !extracted.fullText) && strategyName !== 'generic') {
+        this.logger.debug(`CSS selector failed for ${source}, trying XPath fallback: ${url}`);
         extracted = strategy.extractWithXPath($, url);
+        if (extracted && extracted.fullText) {
+          usedStrategy = `${strategyName}-xpath`;
+        }
       }
 
-      // Strategy 3: Generic readability-like algorithm
+      // Strategy 3: Generic selector fallback (if source-specific failed)
+      if ((!extracted || !extracted.fullText) && strategyName !== 'generic') {
+        this.logger.debug(`Source-specific strategy failed for ${source}, trying generic selectors: ${url}`);
+        extracted = this.genericStrategy.extractWithSelector($, url);
+        if (extracted && extracted.fullText) {
+          usedStrategy = 'generic-selector-fallback';
+        }
+      }
+
+      // Strategy 4: Generic readability-like algorithm (last resort)
       if (!extracted || !extracted.fullText) {
+        this.logger.debug(`All selector strategies failed, trying readability algorithm: ${url}`);
         extracted = this.genericStrategy.extractGeneric($, url);
+        if (extracted && extracted.fullText) {
+          usedStrategy = 'readability-algorithm';
+        }
       }
 
       if (!extracted || !extracted.fullText) {
-        this.logger.warn(`Failed to extract content from: ${url}`);
+        this.logger.warn(`Failed to extract content from: ${url} (tried all strategies)`);
         return null;
+      }
+
+      // Log success with strategy used (for monitoring)
+      if (usedStrategy.includes('readability') || usedStrategy.includes('generic-fallback')) {
+        this.logger.warn(`Extracted using fallback strategy (${usedStrategy}) for ${source}: ${url} - website structure may have changed`);
+      } else {
+        this.logger.debug(`Successfully extracted using ${usedStrategy} for ${source}: ${url}`);
       }
 
       // Add rawHTML to create ExtractedContent

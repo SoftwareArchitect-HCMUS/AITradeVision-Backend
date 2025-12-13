@@ -7,6 +7,7 @@ import { NewsEntity } from '../database/entities/news.entity';
 import { MinioService } from '../minio/minio.service';
 import { RedisService } from '../redis/redis.service';
 import { ExtractionService } from './extraction/extraction.service';
+import { GeminiService } from '../gemini/gemini.service';
 import { REDIS_CHANNELS } from '@shared/core';
 
 /**
@@ -23,6 +24,7 @@ export class CrawlerService implements OnModuleInit {
     private minioService: MinioService,
     private redisService: RedisService,
     private extractionService: ExtractionService,
+    private geminiService: GeminiService,
   ) {}
 
   /**
@@ -57,6 +59,16 @@ export class CrawlerService implements OnModuleInit {
       await this.crawlQueue.add('crawl-source', {
         source: source.name,
         url: source.url,
+      }, {
+        // Override default options for this specific job
+        removeOnComplete: {
+          age: 3600, // 1 hour
+          count: 50, // Keep max 50
+        },
+        removeOnFail: {
+          age: 86400, // 24 hours
+          count: 20, // Keep max 20
+        },
       });
     }
 
@@ -92,8 +104,23 @@ export class CrawlerService implements OnModuleInit {
       const objectKey = this.minioService.generateObjectKey(source, url);
       await this.minioService.uploadHTML(objectKey, extracted.rawHTML);
 
-      // Extract tickers from content
-      const tickers = this.extractTickers(extracted.title + ' ' + extracted.fullText);
+      // Extract tickers from content (with AI fallback)
+      this.logger.log(`Extracting tickers for article: ${extracted.title.substring(0, 60)}...`);
+      let tickers = this.extractTickers(extracted.title + ' ' + extracted.fullText);
+      
+      // If no tickers found with regex/keyword, try AI extraction
+      if (tickers.length === 0) {
+        this.logger.log(`No tickers found with regex/patterns, trying AI extraction for: ${extracted.title.substring(0, 60)}...`);
+        const aiTickers = await this.geminiService.extractTickers(extracted.title, extracted.fullText);
+        if (aiTickers.length > 0) {
+          tickers = aiTickers;
+          this.logger.log(`✅ AI extracted ${tickers.length} ticker(s): ${tickers.join(', ')}`);
+        } else {
+          this.logger.warn(`⚠️ No tickers found (regex and AI both failed) for: ${extracted.title.substring(0, 60)}...`);
+        }
+      } else {
+        this.logger.log(`✅ Extracted ${tickers.length} ticker(s) with regex/patterns: ${tickers.join(', ')}`);
+      }
 
       // Save to database
       const news = this.newsRepository.create({
@@ -131,9 +158,118 @@ export class CrawlerService implements OnModuleInit {
    * @returns Array of ticker symbols
    */
   private extractTickers(text: string): string[] {
-    const tickerPattern = /\b(BTC|ETH|SOL|BNB|ADA|XRP|DOGE|DOT|MATIC|AVAX|LINK|UNI|LTC|ATOM|ETC|XLM|ALGO|VET|ICP|FIL)USDT?\b/gi;
-    const matches = text.match(tickerPattern);
-    return matches ? [...new Set(matches.map(m => m.toUpperCase()))] : [];
+    const tickers = new Set<string>();
+    const upperText = text.toUpperCase();
+
+    // Common cryptocurrency tickers (expanded list)
+    const commonTickers = [
+      'BTC', 'ETH', 'SOL', 'BNB', 'ADA', 'XRP', 'DOGE', 'DOT', 'MATIC', 'AVAX',
+      'LINK', 'UNI', 'LTC', 'ATOM', 'ETC', 'XLM', 'ALGO', 'VET', 'ICP', 'FIL',
+      'TRX', 'NEAR', 'APT', 'OP', 'ARB', 'INJ', 'TIA', 'SUI', 'SEI', 'WLD',
+      'PEPE', 'SHIB', 'FLOKI', 'BONK', 'FET', 'RENDER', 'RUNE', 'THETA', 'FTM',
+      'SAND', 'MANA', 'AXS', 'ENJ', 'GALA', 'CHZ', 'FLOW', 'IMX', 'GMT', 'APE',
+    ];
+
+    // Map coin names to tickers
+    const coinNameMap: Record<string, string> = {
+      'BITCOIN': 'BTC',
+      'ETHEREUM': 'ETH',
+      'SOLANA': 'SOL',
+      'BINANCE COIN': 'BNB',
+      'CARDANO': 'ADA',
+      'RIPPLE': 'XRP',
+      'DOGECOIN': 'DOGE',
+      'POLKADOT': 'DOT',
+      'POLYGON': 'MATIC',
+      'AVALANCHE': 'AVAX',
+      'CHAINLINK': 'LINK',
+      'UNISWAP': 'UNI',
+      'LITECOIN': 'LTC',
+      'COSMOS': 'ATOM',
+      'ETHEREUM CLASSIC': 'ETC',
+      'STELLAR': 'XLM',
+      'ALGORAND': 'ALGO',
+      'VECHAIN': 'VET',
+      'INTERNET COMPUTER': 'ICP',
+      'FILECOIN': 'FIL',
+      'TRON': 'TRX',
+      'NEAR PROTOCOL': 'NEAR',
+      'APTOS': 'APT',
+      'OPTIMISM': 'OP',
+      'ARBITRUM': 'ARB',
+      'INJECTIVE': 'INJ',
+      'CELESTIA': 'TIA',
+      'SUI': 'SUI',
+      'SEI': 'SEI',
+      'WORLDCOIN': 'WLD',
+      'PEPE': 'PEPE',
+      'SHIBA INU': 'SHIB',
+      'FLOKI': 'FLOKI',
+      'BONK': 'BONK',
+      'FETCH.AI': 'FET',
+      'RENDER': 'RENDER',
+      'THORCHAIN': 'RUNE',
+      'THETA': 'THETA',
+      'FANTOM': 'FTM',
+      'SAND': 'SAND',
+      'DECENTRALAND': 'MANA',
+      'AXIE INFINITY': 'AXS',
+      'ENJIN': 'ENJ',
+      'GALA': 'GALA',
+      'CHILIZ': 'CHZ',
+      'FLOW': 'FLOW',
+      'IMMUTABLE X': 'IMX',
+      'STEPN': 'GMT',
+      'APECOIN': 'APE',
+    };
+
+    // Pattern 1: Match ticker pairs (BTCUSDT, ETH/USD, BTC-USDT, etc.)
+    const pairPattern = /\b([A-Z]{2,10})(?:USDT|USD|EUR|GBP|JPY|\/USDT|\/USD|\/EUR|\/GBP|\/JPY|-USDT|-USD)\b/gi;
+    const pairMatches = text.match(pairPattern);
+    if (pairMatches) {
+      pairMatches.forEach(match => {
+        // Extract base ticker (before USDT/USD/etc)
+        const baseTicker = match.replace(/(?:USDT|USD|EUR|GBP|JPY|\/|-)/gi, '').toUpperCase();
+        if (commonTickers.includes(baseTicker)) {
+          tickers.add(baseTicker);
+        }
+      });
+    }
+
+    // Pattern 2: Match standalone tickers (BTC, ETH, etc.) - must be word boundaries
+    for (const ticker of commonTickers) {
+      // Match ticker as standalone word or followed by space/punctuation
+      const standalonePattern = new RegExp(`\\b${ticker}\\b(?!USDT|USD|EUR|GBP|JPY)`, 'gi');
+      if (standalonePattern.test(text)) {
+        tickers.add(ticker);
+      }
+    }
+
+    // Pattern 3: Match coin names and map to tickers
+    for (const [coinName, ticker] of Object.entries(coinNameMap)) {
+      const namePattern = new RegExp(`\\b${coinName.replace(/\s+/g, '\\s+')}\\b`, 'gi');
+      if (namePattern.test(text)) {
+        tickers.add(ticker);
+      }
+    }
+
+    // Convert to array and normalize to USDT pairs for consistency (e.g., BTC -> BTCUSDT)
+    const result = Array.from(tickers)
+      .map(t => {
+        const upperTicker = t.toUpperCase();
+        // If already ends with USDT/USD/etc, keep as is, otherwise add USDT
+        if (upperTicker.endsWith('USDT') || upperTicker.endsWith('USD') || 
+            upperTicker.endsWith('EUR') || upperTicker.endsWith('GBP') || 
+            upperTicker.endsWith('JPY')) {
+          return upperTicker;
+        }
+        return `${upperTicker}USDT`;
+      })
+      .filter((t, index, self) => self.indexOf(t) === index); // Remove duplicates
+    
+    // Logging is handled in processArticle method, so we don't log here to avoid duplicate logs
+
+    return result;
   }
 }
 

@@ -35,7 +35,7 @@ export class NewsProcessorService implements OnModuleInit {
    * @param event - News created event
    */
   private async processNewsEvent(event: NewsCreatedEvent): Promise<void> {
-    this.logger.log(`Processing news event: ${event.newsId}`);
+    this.logger.log(`Processing news event: ${event.newsId}, tickers from event: ${JSON.stringify(event.tickers)}`);
 
     try {
       // Get full news article
@@ -45,18 +45,36 @@ export class NewsProcessorService implements OnModuleInit {
         return;
       }
 
-      // Process each ticker mentioned in the news
-      for (const ticker of event.tickers) {
-        // Get historical price data (last 24 hours)
-        const priceData = await this.databaseService.getHistoricalPrice(ticker, 24);
+      this.logger.log(`News found: ${news.title}, tickers from DB: ${JSON.stringify(news.tickers)}`);
 
-        // Analyze with Gemini
-        const analysis = await this.geminiService.analyzeNews(
-          news.title,
-          news.fullText,
-          priceData,
-          ticker,
-        );
+      // Use tickers from news entity (source of truth) if event.tickers is empty
+      const tickers = news.tickers && news.tickers.length > 0 ? news.tickers : event.tickers;
+
+      if (!tickers || tickers.length === 0) {
+        this.logger.warn(`No tickers found for news ${event.newsId}, skipping AI analysis`);
+        return;
+      }
+
+      this.logger.log(`Processing ${tickers.length} ticker(s) for news ${event.newsId}: ${tickers.join(', ')}`);
+
+      // Process each ticker mentioned in the news
+      for (const ticker of tickers) {
+        try {
+          this.logger.log(`Processing ticker ${ticker} for news ${event.newsId}...`);
+
+          // Get historical price data (last 24 hours)
+          const priceData = await this.databaseService.getHistoricalPrice(ticker, 24);
+          this.logger.log(`Retrieved ${priceData.length} price data points for ${ticker}`);
+
+          // Analyze with Gemini
+          this.logger.log(`Calling Gemini API for ${ticker}...`);
+          const analysis = await this.geminiService.analyzeNews(
+            news.title,
+            news.fullText,
+            priceData,
+            ticker,
+          );
+          this.logger.log(`Gemini analysis completed for ${ticker}: sentiment=${analysis.sentiment}, prediction=${analysis.prediction}, confidence=${analysis.confidence}`);
 
         // Store embedding in Qdrant
         const embeddingId = `news_${event.newsId}_${ticker}_${Date.now()}`;
@@ -68,22 +86,27 @@ export class NewsProcessorService implements OnModuleInit {
           sentiment: analysis.sentiment,
         });
 
-        // Save AI insight to database
-        await this.databaseService.saveInsight({
-          newsId: event.newsId,
-          symbol: ticker,
-          sentiment: analysis.sentiment,
-          summary: analysis.summary,
-          reasoning: analysis.reasoning,
-          prediction: analysis.prediction,
-          confidence: analysis.confidence,
-          embeddingId,
-        });
-
-        this.logger.log(`Generated AI insight for ${ticker} from news ${event.newsId}`);
+          // Save AI insight to database
+          this.logger.log(`Saving AI insight to database for ${ticker}...`);
+          await this.databaseService.saveInsight({
+            newsId: event.newsId,
+            symbol: ticker,
+            sentiment: analysis.sentiment,
+            summary: analysis.summary,
+            reasoning: analysis.reasoning,
+            prediction: analysis.prediction,
+            confidence: analysis.confidence,
+            embeddingId,
+          });
+          this.logger.log(`✅ Generated AI insight for ${ticker} from news ${event.newsId}`);
+        } catch (tickerError) {
+          this.logger.error(`Error processing ticker ${ticker} for news ${event.newsId}:`, tickerError);
+          // Continue with next ticker instead of failing entire news
+        }
       }
     } catch (error) {
       this.logger.error(`Error processing news event ${event.newsId}:`, error);
+      this.logger.error(`Error stack: ${error.stack}`);
     }
   }
 }
