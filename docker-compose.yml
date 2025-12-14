@@ -70,11 +70,8 @@ services:
       - qdrant-data:/qdrant/storage
     networks:
       - crypto-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # Note: Qdrant container doesn't have curl/wget, so we skip healthcheck
+    # The service will start and be ready when port 6333 is listening
 
   # MinIO object storage
   minio:
@@ -223,7 +220,7 @@ services:
       timescaledb:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
     networks:
       - crypto-network
     restart: unless-stopped
