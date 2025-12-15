@@ -53,6 +53,7 @@ export class CrawlerService implements OnModuleInit {
       { name: 'yahoo-finance', url: 'https://finance.yahoo.com/crypto' },
       { name: 'investing', url: 'https://www.investing.com/crypto' },
       { name: 'cnbc-crypto', url: 'https://www.cnbc.com/cryptocurrency' },
+      { name: 'crypto-news.io', url: 'https://cryptonews.io' },
     ];
 
     for (const source of sources) {
