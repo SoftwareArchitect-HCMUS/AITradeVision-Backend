@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import * as https from 'https';
 import { BloombergStrategy } from '../strategies/bloomberg.strategy';
 import { ReutersStrategy } from '../strategies/reuters.strategy';
 import { CointelegraphStrategy } from '../strategies/cointelegraph.strategy';
@@ -57,12 +58,27 @@ export class ExtractionService {
    */
   async extract(url: string, source: string): Promise<ExtractedContent | null> {
     try {
-      // Fetch HTML
+      // Fetch HTML with improved headers and error handling
       const response = await axios.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Cache-Control': 'max-age=0',
         },
         timeout: 30000,
+        maxRedirects: 5,
+        validateStatus: (status) => status < 500,
+        // Handle SSL certificate issues
+        httpsAgent: new https.Agent({
+          rejectUnauthorized: !url.includes('cryptonews.io'),
+        }),
       });
 
       const html = response.data;
