@@ -25,7 +25,7 @@ import { RedisModule } from './redis/redis.module';
       password: process.env.POSTGRES_PASSWORD || 'crypto_pass',
       database: process.env.POSTGRES_DB || 'crypto_main',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false,
+      synchronize: true,
       logging: false,
     }),
     BullModule.forRoot({

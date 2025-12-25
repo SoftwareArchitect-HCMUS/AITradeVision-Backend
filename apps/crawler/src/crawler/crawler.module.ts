@@ -15,6 +15,9 @@ import { YahooFinanceStrategy } from './strategies/yahoo-finance.strategy';
 import { InvestingStrategy } from './strategies/investing.strategy';
 import { CNBCCryptoStrategy } from './strategies/cnbc-crypto.strategy';
 import { GenericStrategy } from './strategies/generic.strategy';
+import { ExtractionTemplateEntity } from '../database/entities/extraction-template.entity';
+import { TemplateService } from './extraction/template.service';
+import { TemplateGeneratorService } from './extraction/template-generator.service';
 
 @Module({
   imports: [
@@ -36,7 +39,7 @@ import { GenericStrategy } from './strategies/generic.strategy';
         },
       },
     }),
-    TypeOrmModule.forFeature([NewsEntity]),
+    TypeOrmModule.forFeature([NewsEntity, ExtractionTemplateEntity]),
     MinioModule,
     RedisModule,
     GroqModule,
@@ -45,6 +48,8 @@ import { GenericStrategy } from './strategies/generic.strategy';
     CrawlerService,
     CrawlerProcessor,
     ExtractionService,
+    TemplateService,
+    TemplateGeneratorService,
     BloombergStrategy,
     ReutersStrategy,
     CointelegraphStrategy,

@@ -51,5 +51,45 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       throw error;
     }
   }
+
+  /**
+   * Get value from Redis cache
+   * @param key - Cache key
+   * @returns Cached value or null
+   */
+  async get(key: string): Promise<string | null> {
+    try {
+      return await this.publisher.get(key);
+    } catch (error) {
+      this.logger.error(`Failed to get cache key ${key}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Set value in Redis cache with TTL
+   * @param key - Cache key
+   * @param value - Value to cache
+   * @param ttlSeconds - Time to live in seconds
+   */
+  async setex(key: string, ttlSeconds: number, value: string): Promise<void> {
+    try {
+      await this.publisher.setex(key, ttlSeconds, value);
+    } catch (error) {
+      this.logger.error(`Failed to set cache key ${key}:`, error);
+    }
+  }
+
+  /**
+   * Delete key from Redis cache
+   * @param key - Cache key to delete
+   */
+  async del(key: string): Promise<void> {
+    try {
+      await this.publisher.del(key);
+    } catch (error) {
+      this.logger.error(`Failed to delete cache key ${key}:`, error);
+    }
+  }
 }
 

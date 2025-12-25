@@ -13,11 +13,14 @@ import { GroqService } from '../../groq/groq.service';
 import { ExtractionStrategy } from '../strategies/extraction-strategy.interface';
 import { ExtractionChain } from './extraction-chain';
 import { ExtractionContext } from './extraction-method.interface';
+import { TemplateMethod } from './methods/template.method';
 import { CssSelectorMethod } from './methods/css-selector.method';
 import { XPathMethod } from './methods/xpath.method';
 import { GenericCssMethod } from './methods/generic-css.method';
 import { ReadabilityMethod } from './methods/readability.method';
 import { GroqLlmMethod } from './methods/groq-llm.method';
+import { TemplateService } from './template.service';
+import { TemplateGeneratorService } from './template-generator.service';
 
 export interface ExtractedContentBase {
   title: string;
@@ -49,6 +52,8 @@ export class ExtractionService {
     private cnbcCryptoStrategy: CNBCCryptoStrategy,
     private genericStrategy: GenericStrategy,
     private groqService: GroqService,
+    private templateService: TemplateService,
+    private templateGenerator: TemplateGeneratorService,
   ) {
     // Register source-specific strategies
     this.strategies.set('bloomberg', this.bloombergStrategy);
@@ -58,8 +63,13 @@ export class ExtractionService {
     this.strategies.set('investing', this.investingStrategy);
     this.strategies.set('cnbc-crypto', this.cnbcCryptoStrategy);
 
-    // Initialize extraction chain with all methods
+    // Initialize extraction chain with all methods (priority order)
     this.extractionChain = new ExtractionChain();
+    // Priority 0: Template method (AI-generated templates) - highest priority
+    this.extractionChain.addStrategy(
+      new TemplateMethod(this.templateService, this.templateGenerator),
+    );
+    // Priority 1-5: Manual methods (fallbacks)
     this.extractionChain.addStrategy(new CssSelectorMethod());
     this.extractionChain.addStrategy(new XPathMethod());
     this.extractionChain.addStrategy(new GenericCssMethod());

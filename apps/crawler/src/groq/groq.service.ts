@@ -103,6 +103,40 @@ ${html.substring(0, 6000)}
   }
 
   /**
+   * Generate text using Groq API (for template generation and other uses)
+   * @param prompt - Prompt text
+   * @param systemPrompt - System prompt (optional)
+   * @param maxTokens - Maximum tokens (default: 500)
+   * @returns Generated text or null
+   */
+  async generateText(
+    prompt: string,
+    systemPrompt: string = 'You are a helpful assistant. Return only valid JSON when requested.',
+    maxTokens: number = 500,
+  ): Promise<string | null> {
+    if (!this.client) {
+      return null;
+    }
+
+    try {
+      const response = await this.client.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.1,
+        max_tokens: maxTokens,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt },
+        ],
+      });
+
+      return response.choices?.[0]?.message?.content?.trim() || null;
+    } catch (error) {
+      this.logger.error('Error generating text with Groq:', error);
+      return null;
+    }
+  }
+
+  /**
    * Extract cryptocurrency tickers from news content using Groq LLM.
    * @param title - News title
    * @param content - News content
