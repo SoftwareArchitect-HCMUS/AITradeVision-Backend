@@ -11,6 +11,13 @@ import { CNBCCryptoStrategy } from '../strategies/cnbc-crypto.strategy';
 import { GenericStrategy } from '../strategies/generic.strategy';
 import { GroqService } from '../../groq/groq.service';
 import { ExtractionStrategy } from '../strategies/extraction-strategy.interface';
+import { ExtractionChain } from './extraction-chain';
+import { ExtractionContext } from './extraction-method.interface';
+import { CssSelectorMethod } from './methods/css-selector.method';
+import { XPathMethod } from './methods/xpath.method';
+import { GenericCssMethod } from './methods/generic-css.method';
+import { ReadabilityMethod } from './methods/readability.method';
+import { GroqLlmMethod } from './methods/groq-llm.method';
 
 export interface ExtractedContentBase {
   title: string;
@@ -25,11 +32,13 @@ export interface ExtractedContent extends ExtractedContentBase {
 
 /**
  * Service for extracting content from news articles using multiple strategies
+ * Uses Strategy Pattern + Chain of Responsibility for extraction methods
  */
 @Injectable()
 export class ExtractionService {
   private readonly logger = new Logger(ExtractionService.name);
   private strategies: Map<string, ExtractionStrategy> = new Map();
+  private extractionChain: ExtractionChain;
 
   constructor(
     private bloombergStrategy: BloombergStrategy,
@@ -41,13 +50,21 @@ export class ExtractionService {
     private genericStrategy: GenericStrategy,
     private groqService: GroqService,
   ) {
-    // Register strategies
+    // Register source-specific strategies
     this.strategies.set('bloomberg', this.bloombergStrategy);
     this.strategies.set('reuters', this.reutersStrategy);
     this.strategies.set('cointelegraph', this.cointelegraphStrategy);
     this.strategies.set('yahoo-finance', this.yahooFinanceStrategy);
     this.strategies.set('investing', this.investingStrategy);
     this.strategies.set('cnbc-crypto', this.cnbcCryptoStrategy);
+
+    // Initialize extraction chain with all methods
+    this.extractionChain = new ExtractionChain();
+    this.extractionChain.addStrategy(new CssSelectorMethod());
+    this.extractionChain.addStrategy(new XPathMethod());
+    this.extractionChain.addStrategy(new GenericCssMethod());
+    this.extractionChain.addStrategy(new ReadabilityMethod());
+    this.extractionChain.addStrategy(new GroqLlmMethod());
   }
 
   /**
@@ -84,50 +101,23 @@ export class ExtractionService {
       const html = response.data;
       const $ = cheerio.load(html);
 
-      // Try source-specific strategy first
-      const strategy = this.strategies.get(source) || this.genericStrategy;
-      const strategyName = source !== 'generic' ? source : 'generic';
+      // Prepare extraction context
+      const sourceStrategy = this.strategies.get(source) || this.genericStrategy;
+      const sourceStrategyName = source !== 'generic' ? source : 'generic';
 
-      // Strategy 1: CSS Selector (primary) - source-specific
-      let extracted = strategy.extractWithSelector($, url);
-      let usedStrategy = strategyName === 'generic' ? 'generic-selector' : `${strategyName}-selector`;
+      const context: ExtractionContext = {
+        $,
+        url,
+        html,
+        source,
+        sourceStrategy,
+        sourceStrategyName,
+        genericStrategy: this.genericStrategy,
+        groqService: this.groqService,
+      };
 
-      // Strategy 2: XPath fallback if CSS fails (only for source-specific strategies)
-      if ((!extracted || !extracted.fullText) && strategyName !== 'generic') {
-        this.logger.debug(`CSS selector failed for ${source}, trying XPath fallback: ${url}`);
-        extracted = strategy.extractWithXPath($, url);
-        if (extracted && extracted.fullText) {
-          usedStrategy = `${strategyName}-xpath`;
-        }
-      }
-
-      // Strategy 3: Generic selector fallback (if source-specific failed)
-      if ((!extracted || !extracted.fullText) && strategyName !== 'generic') {
-        this.logger.debug(`Source-specific strategy failed for ${source}, trying generic selectors: ${url}`);
-        extracted = this.genericStrategy.extractWithSelector($, url);
-        if (extracted && extracted.fullText) {
-          usedStrategy = 'generic-selector-fallback';
-        }
-      }
-
-      // Strategy 4: Generic readability-like algorithm (last manual resort)
-      if (!extracted || !extracted.fullText) {
-        this.logger.debug(`All selector strategies failed, trying readability algorithm: ${url}`);
-        extracted = this.genericStrategy.extractGeneric($, url);
-        if (extracted && extracted.fullText) {
-          usedStrategy = 'readability-algorithm';
-        }
-      }
-
-      // Strategy 5: LLM-based extraction (Groq) as automatic adaptive fallback
-      if ((!extracted || !extracted.fullText) && this.groqService.isEnabled()) {
-        this.logger.debug(`Manual strategies failed, trying Groq LLM extraction: ${url}`);
-        const aiExtracted = await this.groqService.extractFromHtml(url, html);
-        if (aiExtracted && aiExtracted.fullText) {
-          extracted = aiExtracted;
-          usedStrategy = 'groq-llm';
-        }
-      }
+      // Execute extraction chain (tries all methods in priority order)
+      const extracted = await this.extractionChain.execute(context);
 
       if (!extracted || !extracted.fullText) {
         this.logger.warn(`Failed to extract content from: ${url} (tried all strategies)`);
@@ -135,8 +125,9 @@ export class ExtractionService {
       }
 
       // Log success with strategy used (for monitoring)
-      if (usedStrategy.includes('readability') || usedStrategy.includes('generic-fallback')) {
-        this.logger.warn(`Extracted using fallback strategy (${usedStrategy}) for ${source}: ${url} - website structure may have changed`);
+      const usedStrategy = context.usedStrategy || 'unknown';
+      if (usedStrategy.includes('readability') || usedStrategy.includes('generic-fallback') || usedStrategy.includes('groq-llm')) {
+        this.logger.warn(`Extracted using fallback strategy (${usedStrategy}) for ${source}: ${url} - website structure may have changed or required AI`);
       } else {
         this.logger.debug(`Successfully extracted using ${usedStrategy} for ${source}: ${url}`);
       }
