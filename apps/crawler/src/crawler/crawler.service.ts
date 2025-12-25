@@ -46,14 +46,15 @@ export class CrawlerService implements OnModuleInit {
    * Schedule crawl jobs for all sources
    */
   private async scheduleCrawl(): Promise<void> {
+    // Removed problematic sources:
+    // - yahoo-finance: Header overflow (Node.js HTTP parser limitation)
+    // - investing: Connection reset (firewall/rate limiting)
+    // - crypto-news.io: SSL certificate expired
     const sources = [
       { name: 'bloomberg', url: 'https://www.bloomberg.com/crypto' },
       { name: 'reuters', url: 'https://www.reuters.com/finance/cryptocurrency' },
       { name: 'cointelegraph', url: 'https://cointelegraph.com' },
-      { name: 'yahoo-finance', url: 'https://finance.yahoo.com/crypto' },
-      { name: 'investing', url: 'https://www.investing.com/crypto' },
       { name: 'cnbc-crypto', url: 'https://www.cnbc.com/cryptocurrency' },
-      { name: 'crypto-news.io', url: 'https://cryptonews.io' },
     ];
 
     for (const source of sources) {
