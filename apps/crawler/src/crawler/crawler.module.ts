@@ -6,7 +6,7 @@ import { CrawlerProcessor } from './crawler.processor';
 import { NewsEntity } from '../database/entities/news.entity';
 import { MinioModule } from '../minio/minio.module';
 import { RedisModule } from '../redis/redis.module';
-import { GeminiModule } from '../gemini/gemini.module';
+import { GroqModule } from '../groq/groq.module';
 import { ExtractionService } from './extraction/extraction.service';
 import { BloombergStrategy } from './strategies/bloomberg.strategy';
 import { ReutersStrategy } from './strategies/reuters.strategy';
@@ -39,7 +39,7 @@ import { GenericStrategy } from './strategies/generic.strategy';
     TypeOrmModule.forFeature([NewsEntity]),
     MinioModule,
     RedisModule,
-    GeminiModule,
+    GroqModule,
   ],
   providers: [
     CrawlerService,

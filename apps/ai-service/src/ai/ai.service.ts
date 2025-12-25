@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { GeminiService } from '../gemini/gemini.service';
+import { GroqService } from '../groq/groq.service';
 import { QdrantService } from '../qdrant/qdrant.service';
 import { AIInsightDto } from '@shared/dto/ai.dto';
 
@@ -11,7 +11,7 @@ import { AIInsightDto } from '@shared/dto/ai.dto';
 export class AIService {
   constructor(
     private databaseService: DatabaseService,
-    private geminiService: GeminiService,
+    private groqService: GroqService,
     private qdrantService: QdrantService,
   ) {}
 
@@ -39,7 +39,7 @@ export class AIService {
    */
   async searchSimilar(query: string, limit: number = 10): Promise<any[]> {
     // Generate embedding for query
-    const queryEmbedding = await this.geminiService.generateEmbedding(query);
+    const queryEmbedding = await this.groqService.generateEmbedding(query);
 
     // Search in Qdrant
     const results = await this.qdrantService.searchSimilar(queryEmbedding, limit);

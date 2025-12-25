@@ -7,7 +7,7 @@ import { NewsEntity } from '../database/entities/news.entity';
 import { MinioService } from '../minio/minio.service';
 import { RedisService } from '../redis/redis.service';
 import { ExtractionService } from './extraction/extraction.service';
-import { GeminiService } from '../gemini/gemini.service';
+import { GroqService } from '../groq/groq.service';
 import { REDIS_CHANNELS } from '@shared/core';
 
 /**
@@ -24,7 +24,7 @@ export class CrawlerService implements OnModuleInit {
     private minioService: MinioService,
     private redisService: RedisService,
     private extractionService: ExtractionService,
-    private geminiService: GeminiService,
+    private groqService: GroqService,
   ) {}
 
   /**
@@ -109,15 +109,15 @@ export class CrawlerService implements OnModuleInit {
       this.logger.log(`Extracting tickers for article: ${extracted.title.substring(0, 60)}...`);
       let tickers = this.extractTickers(extracted.title + ' ' + extracted.fullText);
       
-      // If no tickers found with regex/keyword, try AI extraction
+      // If no tickers found with regex/keyword, try AI extraction (Groq)
       if (tickers.length === 0) {
-        this.logger.log(`No tickers found with regex/patterns, trying AI extraction for: ${extracted.title.substring(0, 60)}...`);
-        const aiTickers = await this.geminiService.extractTickers(extracted.title, extracted.fullText);
+        this.logger.log(`No tickers found with regex/patterns, trying Groq AI extraction for: ${extracted.title.substring(0, 60)}...`);
+        const aiTickers = await this.groqService.extractTickers(extracted.title, extracted.fullText);
         if (aiTickers.length > 0) {
           tickers = aiTickers;
-          this.logger.log(`✅ AI extracted ${tickers.length} ticker(s): ${tickers.join(', ')}`);
+          this.logger.log(`✅ Groq AI extracted ${tickers.length} ticker(s): ${tickers.join(', ')}`);
         } else {
-          this.logger.warn(`⚠️ No tickers found (regex and AI both failed) for: ${extracted.title.substring(0, 60)}...`);
+          this.logger.warn(`⚠️ No tickers found (regex and Groq AI both failed) for: ${extracted.title.substring(0, 60)}...`);
         }
       } else {
         this.logger.log(`✅ Extracted ${tickers.length} ticker(s) with regex/patterns: ${tickers.join(', ')}`);

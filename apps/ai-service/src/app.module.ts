@@ -5,7 +5,7 @@ import { AIController } from './ai/ai.controller';
 import { AIService } from './ai/ai.service';
 import { NewsProcessorModule } from './news-processor/news-processor.module';
 import { QdrantModule } from './qdrant/qdrant.module';
-import { GeminiModule } from './gemini/gemini.module';
+import { GroqModule } from './groq/groq.module';
 import { DatabaseModule } from './database/database.module';
 import { RedisModule } from './redis/redis.module';
 
@@ -45,7 +45,7 @@ import { RedisModule } from './redis/redis.module';
     RedisModule,
     DatabaseModule,
     QdrantModule,
-    GeminiModule,
+    GroqModule,
     NewsProcessorModule,
   ],
   controllers: [AIController],

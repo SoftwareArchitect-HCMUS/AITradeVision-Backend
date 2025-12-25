@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 import { NewsProcessorService } from './news-processor.service';
 import { RedisModule } from '../redis/redis.module';
 import { DatabaseModule } from '../database/database.module';
-import { GeminiModule } from '../gemini/gemini.module';
+import { GroqModule } from '../groq/groq.module';
 import { QdrantModule } from '../qdrant/qdrant.module';
 
 @Module({
-  imports: [RedisModule, DatabaseModule, GeminiModule, QdrantModule],
+  imports: [RedisModule, DatabaseModule, GroqModule, QdrantModule],
   providers: [NewsProcessorService],
 })
 export class NewsProcessorModule {}

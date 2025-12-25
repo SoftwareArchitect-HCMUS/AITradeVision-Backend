@@ -8,6 +8,7 @@ import { YahooFinanceStrategy } from '../strategies/yahoo-finance.strategy';
 import { InvestingStrategy } from '../strategies/investing.strategy';
 import { CNBCCryptoStrategy } from '../strategies/cnbc-crypto.strategy';
 import { GenericStrategy } from '../strategies/generic.strategy';
+import { GroqService } from '../../groq/groq.service';
 import { ExtractionStrategy } from '../strategies/extraction-strategy.interface';
 
 export interface ExtractedContentBase {
@@ -37,6 +38,7 @@ export class ExtractionService {
     private investingStrategy: InvestingStrategy,
     private cnbcCryptoStrategy: CNBCCryptoStrategy,
     private genericStrategy: GenericStrategy,
+    private groqService: GroqService,
   ) {
     // Register strategies
     this.strategies.set('bloomberg', this.bloombergStrategy);
@@ -92,12 +94,22 @@ export class ExtractionService {
         }
       }
 
-      // Strategy 4: Generic readability-like algorithm (last resort)
+      // Strategy 4: Generic readability-like algorithm (last manual resort)
       if (!extracted || !extracted.fullText) {
         this.logger.debug(`All selector strategies failed, trying readability algorithm: ${url}`);
         extracted = this.genericStrategy.extractGeneric($, url);
         if (extracted && extracted.fullText) {
           usedStrategy = 'readability-algorithm';
+        }
+      }
+
+      // Strategy 5: LLM-based extraction (Groq) as automatic adaptive fallback
+      if ((!extracted || !extracted.fullText) && this.groqService.isEnabled()) {
+        this.logger.debug(`Manual strategies failed, trying Groq LLM extraction: ${url}`);
+        const aiExtracted = await this.groqService.extractFromHtml(url, html);
+        if (aiExtracted && aiExtracted.fullText) {
+          extracted = aiExtracted;
+          usedStrategy = 'groq-llm';
         }
       }
 

@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 import { DatabaseService } from '../database/database.service';
-import { GeminiService } from '../gemini/gemini.service';
+import { GroqService } from '../groq/groq.service';
 import { QdrantService } from '../qdrant/qdrant.service';
 import { NewsCreatedEvent } from '@shared/events/news.events';
 
@@ -15,7 +15,7 @@ export class NewsProcessorService implements OnModuleInit {
   constructor(
     private redisService: RedisService,
     private databaseService: DatabaseService,
-    private geminiService: GeminiService,
+    private groqService: GroqService,
     private qdrantService: QdrantService,
   ) {}
 
@@ -66,15 +66,15 @@ export class NewsProcessorService implements OnModuleInit {
           const priceData = await this.databaseService.getHistoricalPrice(ticker, 24);
           this.logger.log(`Retrieved ${priceData.length} price data points for ${ticker}`);
 
-          // Analyze with Gemini
-          this.logger.log(`Calling Gemini API for ${ticker}...`);
-          const analysis = await this.geminiService.analyzeNews(
+          // Analyze with Groq
+          this.logger.log(`Calling Groq API for ${ticker}...`);
+          const analysis = await this.groqService.analyzeNews(
             news.title,
             news.fullText,
             priceData,
             ticker,
           );
-          this.logger.log(`Gemini analysis completed for ${ticker}: sentiment=${analysis.sentiment}, prediction=${analysis.prediction}, confidence=${analysis.confidence}`);
+          this.logger.log(`Groq analysis completed for ${ticker}: sentiment=${analysis.sentiment}, prediction=${analysis.prediction}, confidence=${analysis.confidence}`);
 
         // Store embedding in Qdrant
         const embeddingId = `news_${event.newsId}_${ticker}_${Date.now()}`;

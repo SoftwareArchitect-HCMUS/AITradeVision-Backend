@@ -114,6 +114,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: raw-html
+      GROQ_API_KEY: ${GROQ_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
@@ -211,7 +212,7 @@ services:
       TIMESCALE_DB: ${TIMESCALE_DB:-timescale_db}
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
