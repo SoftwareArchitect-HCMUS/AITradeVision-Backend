@@ -134,6 +134,7 @@ export class TemplateService {
 
   /**
    * Increment success count for a template
+   * Note: Does NOT invalidate cache - cache is only invalidated when template is regenerated
    * @param source - News source name
    */
   async incrementSuccess(source: string): Promise<void> {
@@ -147,10 +148,8 @@ export class TemplateService {
         template.successCount += 1;
         template.lastUsedAt = new Date();
         await this.templateRepository.save(template);
-
-        // Invalidate cache
-        const cacheKey = `${this.CACHE_KEY_PREFIX}${source}`;
-        await this.redisService.del(cacheKey);
+        // Cache is NOT invalidated here - it will be refreshed when template is regenerated
+        // This allows cache to serve template data efficiently without frequent DB queries
       }
     } catch (error) {
       this.logger.error(`Error incrementing success for ${source}:`, error);
@@ -159,6 +158,7 @@ export class TemplateService {
 
   /**
    * Increment fail count for a template
+   * Note: Does NOT invalidate cache - cache is only invalidated when template is regenerated
    * @param source - News source name
    */
   async incrementFail(source: string): Promise<void> {
@@ -171,10 +171,8 @@ export class TemplateService {
       if (template) {
         template.failCount += 1;
         await this.templateRepository.save(template);
-
-        // Invalidate cache
-        const cacheKey = `${this.CACHE_KEY_PREFIX}${source}`;
-        await this.redisService.del(cacheKey);
+        // Cache is NOT invalidated here - it will be refreshed when template is regenerated
+        // This allows cache to serve template data efficiently without frequent DB queries
       }
     } catch (error) {
       this.logger.error(`Error incrementing fail for ${source}:`, error);
@@ -183,6 +181,7 @@ export class TemplateService {
 
   /**
    * Deactivate old template and create new version
+   * Invalidates cache to ensure new template is loaded from DB
    * @param source - News source name
    * @param newTemplate - New template data
    */
@@ -193,6 +192,10 @@ export class TemplateService {
         { source, isActive: true },
         { isActive: false },
       );
+
+      // Invalidate cache before creating new template
+      const cacheKey = `${this.CACHE_KEY_PREFIX}${source}`;
+      await this.redisService.del(cacheKey);
 
       // Create new template with incremented version
       const latestTemplate = await this.templateRepository.findOne({
