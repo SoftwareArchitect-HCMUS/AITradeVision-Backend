@@ -53,6 +53,46 @@ export class MarketController {
   }
 
   /**
+   * Get market history from Binance API (with Redis cache)
+   * @param query - Query parameters
+   * @returns Market history response from Binance
+   */
+  @Get('history/binance')
+  @ApiOperation({ 
+    summary: 'Get market history from Binance', 
+    description: 'Retrieve historical OHLCV data directly from Binance API. Data is cached in Redis for 5 minutes to reduce API calls.' 
+  })
+  @ApiQuery({ name: 'symbol', required: true, description: 'Trading symbol (e.g., BTCUSDT)', example: 'BTCUSDT' })
+  @ApiQuery({ name: 'interval', required: false, description: 'Time interval (1m, 5m, 1h, 1d). Default: 1m', example: '1m' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Number of candles (max 1000). Default: 1000', example: 1000 })
+  @ApiQuery({ name: 'startTime', required: false, description: 'Start timestamp (Unix milliseconds)', example: 1609459200000 })
+  @ApiQuery({ name: 'endTime', required: false, description: 'End timestamp (Unix milliseconds)', example: 1609545600000 })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Market history retrieved successfully from Binance',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { 
+          type: 'array',
+          items: { $ref: '#/components/schemas/OHLCVDto' },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
+  @ApiResponse({ status: 400, description: 'Invalid query parameters or Binance API error' })
+  async getHistoryFromBinance(@Query() query: MarketHistoryDto): Promise<TBaseDTO<OHLCVDto[]>> {
+    try {
+      const data = await this.marketService.getHistoryFromBinance(query);
+      return TBaseDTO.success(data);
+    } catch (error) {
+      return TBaseDTO.error(error.message || 'Failed to fetch market history from Binance');
+    }
+  }
+
+  /**
    * Get real-time price
    * @param symbol - Trading symbol
    * @returns Real-time price response
