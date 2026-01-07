@@ -121,14 +121,21 @@ export class GenericStrategy implements ExtractionStrategy {
   }
 
   /**
-   * Clean and normalize text
+   * Clean and normalize text while preserving line breaks
+   * - Normalizes multiple newlines to double newlines
+   * - Normalizes spaces/tabs within lines (but keeps single newlines)
+   * - Trims leading/trailing whitespace
    * @param text - Raw text
-   * @returns Cleaned text
+   * @returns Cleaned text with preserved line breaks
    */
   private cleanText(text: string): string {
     return text
-      .replace(/\s+/g, ' ')
-      .replace(/\n\s*\n/g, '\n\n')
+      .replace(/\r\n/g, '\n') // Normalize Windows line endings
+      .replace(/\r/g, '\n') // Normalize Mac line endings
+      .replace(/\n{3,}/g, '\n\n') // Normalize 3+ newlines to double newlines
+      .replace(/[ \t]+/g, ' ') // Normalize spaces/tabs within lines (keep \n)
+      .replace(/[ \t]+\n/g, '\n') // Remove trailing spaces before newlines
+      .replace(/\n[ \t]+/g, '\n') // Remove leading spaces after newlines
       .trim();
   }
 
