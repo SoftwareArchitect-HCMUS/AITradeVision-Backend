@@ -39,9 +39,6 @@ export class AIInsightEntity {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
   confidence!: number;
 
-  @Column({ type: 'varchar', length: 255, nullable: true, name: 'embedding_id' })
-  embeddingId?: string;
-
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
