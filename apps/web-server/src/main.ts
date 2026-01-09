@@ -48,6 +48,7 @@ async function bootstrap(): Promise<void> {
     .addTag('auth', 'Authentication endpoints')
     .addTag('market', 'Market data endpoints')
     .addTag('news', 'News endpoints')
+    .addTag('ai', 'AI insights endpoints')
     .addServer('http://localhost:3000', 'Local development server')
     .build();
 

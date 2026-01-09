@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsNumber, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 /**
  * DTO for AI insights query
@@ -7,6 +8,13 @@ export class AIInsightsDto {
   @IsString()
   @IsOptional()
   symbol?: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  @Max(50)
+  limit?: number;
 }
 
 /**

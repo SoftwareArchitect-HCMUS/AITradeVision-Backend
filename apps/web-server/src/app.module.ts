@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { MarketModule } from './market/market.module';
 import { NewsModule } from './news/news.module';
 import { PriceGatewayModule } from './price-gateway/price-gateway.module';
+import { AIModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PriceGatewayModule } from './price-gateway/price-gateway.module';
     MarketModule,
     NewsModule,
     PriceGatewayModule,
+    AIModule,
   ],
 })
 export class AppModule {}
