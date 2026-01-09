@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { GroqService } from '../groq/groq.service';
-import { QdrantService } from '../qdrant/qdrant.service';
 import { AIInsightDto } from '@shared/dto/ai.dto';
 
 /**
@@ -11,8 +9,6 @@ import { AIInsightDto } from '@shared/dto/ai.dto';
 export class AIService {
   constructor(
     private databaseService: DatabaseService,
-    private groqService: GroqService,
-    private qdrantService: QdrantService,
   ) {}
 
   /**
@@ -31,29 +27,6 @@ export class AIService {
     return this.mapToDto(insights);
   }
 
-  /**
-   * Search for similar news/articles
-   * @param query - Search query text
-   * @param limit - Maximum number of results
-   * @returns Array of search results
-   */
-  async searchSimilar(query: string, limit: number = 10): Promise<any[]> {
-    // Generate embedding for query
-    const queryEmbedding = await this.groqService.generateEmbedding(query);
-
-    // Search in Qdrant
-    const results = await this.qdrantService.searchSimilar(queryEmbedding, limit);
-
-    return results.map(result => ({
-      id: result.id,
-      score: result.score,
-      newsId: result.payload.newsId,
-      symbol: result.payload.symbol,
-      title: result.payload.title,
-      summary: result.payload.summary,
-      sentiment: result.payload.sentiment,
-    }));
-  }
 
   /**
    * Map entities to DTOs

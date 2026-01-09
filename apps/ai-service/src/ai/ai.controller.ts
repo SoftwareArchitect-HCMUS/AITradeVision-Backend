@@ -1,6 +1,6 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { AIService } from './ai.service';
-import { AIInsightsDto, AISearchDto, AIInsightDto } from '@shared/dto/ai.dto';
+import { AIInsightsDto, AIInsightDto } from '@shared/dto/ai.dto';
 import { TBaseDTO } from '@shared/dto/base.dto';
 
 /**
@@ -25,19 +25,5 @@ export class AIController {
     }
   }
 
-  /**
-   * Search similar news/articles
-   * @param query - Search query
-   * @returns Search results
-   */
-  @Get('search')
-  async search(@Query() query: AISearchDto): Promise<TBaseDTO<any[]>> {
-    try {
-      const data = await this.aiService.searchSimilar(query.query, query.limit);
-      return TBaseDTO.success(data);
-    } catch (error) {
-      return TBaseDTO.error(error.message || 'Search failed');
-    }
-  }
 }
 

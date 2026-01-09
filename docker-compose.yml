@@ -59,41 +59,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Qdrant vector database
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: crypto-qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant-data:/qdrant/storage
-    networks:
-      - crypto-network
-    # Note: Qdrant container doesn't have curl/wget, so we skip healthcheck
-    # The service will start and be ready when port 6333 is listening
-
-  # MinIO object storage
-  minio:
-    image: minio/minio:latest
-    container_name: crypto-minio
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio-data:/data
-    networks:
-      - crypto-network
-    command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # Crawler Service
   crawler-service:
     build:
@@ -109,18 +74,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-crypto_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crypto_pass}
       POSTGRES_DB: ${POSTGRES_DB:-crypto_main}
-      MINIO_ENDPOINT: minio
-      MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      MINIO_BUCKET: raw-html
       GROQ_API_KEY: ${GROQ_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
       postgres_main:
-        condition: service_healthy
-      minio:
         condition: service_healthy
     networks:
       - crypto-network
@@ -210,8 +168,6 @@ services:
       TIMESCALE_USER: ${TIMESCALE_USER:-timescale_user}
       TIMESCALE_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_pass}
       TIMESCALE_DB: ${TIMESCALE_DB:-timescale_db}
-      QDRANT_HOST: qdrant
-      QDRANT_PORT: 6333
       GROQ_API_KEY: ${GROQ_API_KEY}
     depends_on:
       redis:
@@ -220,8 +176,6 @@ services:
         condition: service_healthy
       timescaledb:
         condition: service_healthy
-      qdrant:
-        condition: service_started
     networks:
       - crypto-network
     restart: unless-stopped
@@ -234,6 +188,4 @@ volumes:
   redis-data:
   postgres-main-data:
   timescaledb-data:
-  qdrant-data:
-  minio-data:
 

@@ -4,7 +4,6 @@ import { Queue } from 'bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NewsEntity } from '../database/entities/news.entity';
-import { MinioService } from '../minio/minio.service';
 import { RedisService } from '../redis/redis.service';
 import { ExtractionService } from './extraction/extraction.service';
 import { GroqService } from '../groq/groq.service';
@@ -21,7 +20,6 @@ export class CrawlerService implements OnModuleInit {
   constructor(
     @InjectQueue('crawl-news') private crawlQueue: Queue,
     @InjectRepository(NewsEntity) private newsRepository: Repository<NewsEntity>,
-    private minioService: MinioService,
     private redisService: RedisService,
     private extractionService: ExtractionService,
     private groqService: GroqService,
@@ -102,10 +100,6 @@ export class CrawlerService implements OnModuleInit {
         return;
       }
 
-      // Upload raw HTML to MinIO
-      const objectKey = this.minioService.generateObjectKey(source, url);
-      await this.minioService.uploadHTML(objectKey, extracted.rawHTML);
-
       // Extract tickers from content (with AI fallback)
       this.logger.log(`Extracting tickers for article: ${extracted.title.substring(0, 60)}...`);
       let tickers = this.extractTickers(extracted.title + ' ' + extracted.fullText);
@@ -133,7 +127,6 @@ export class CrawlerService implements OnModuleInit {
         source,
         publishTime: extracted.publishTime || new Date(),
         url,
-        minioObjectKey: objectKey,
       });
 
       const savedNews = await this.newsRepository.save(news);

@@ -2,7 +2,6 @@ import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 import { DatabaseService } from '../database/database.service';
 import { GroqService } from '../groq/groq.service';
-import { QdrantService } from '../qdrant/qdrant.service';
 import { NewsCreatedEvent } from '@shared/events/news.events';
 
 /**
@@ -16,7 +15,6 @@ export class NewsProcessorService implements OnModuleInit {
     private redisService: RedisService,
     private databaseService: DatabaseService,
     private groqService: GroqService,
-    private qdrantService: QdrantService,
   ) {}
 
   /**
@@ -76,16 +74,6 @@ export class NewsProcessorService implements OnModuleInit {
           );
           this.logger.log(`Groq analysis completed for ${ticker}: sentiment=${analysis.sentiment}, prediction=${analysis.prediction}, confidence=${analysis.confidence}`);
 
-        // Store embedding in Qdrant
-        const embeddingId = `news_${event.newsId}_${ticker}_${Date.now()}`;
-        await this.qdrantService.storeEmbedding(embeddingId, analysis.embedding, {
-          newsId: event.newsId,
-          symbol: ticker,
-          title: news.title,
-          summary: analysis.summary,
-          sentiment: analysis.sentiment,
-        });
-
           // Save AI insight to database
           this.logger.log(`Saving AI insight to database for ${ticker}...`);
           await this.databaseService.saveInsight({
@@ -96,7 +84,6 @@ export class NewsProcessorService implements OnModuleInit {
             reasoning: analysis.reasoning,
             prediction: analysis.prediction,
             confidence: analysis.confidence,
-            embeddingId,
           });
           this.logger.log(`✅ Generated AI insight for ${ticker} from news ${event.newsId}`);
         } catch (tickerError) {

@@ -4,7 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CrawlerService } from './crawler.service';
 import { CrawlerProcessor } from './crawler.processor';
 import { NewsEntity } from '../database/entities/news.entity';
-import { MinioModule } from '../minio/minio.module';
 import { RedisModule } from '../redis/redis.module';
 import { GroqModule } from '../groq/groq.module';
 import { ExtractionService } from './extraction/extraction.service';
@@ -40,7 +39,6 @@ import { TemplateGeneratorService } from './extraction/template-generator.servic
       },
     }),
     TypeOrmModule.forFeature([NewsEntity, ExtractionTemplateEntity]),
-    MinioModule,
     RedisModule,
     GroqModule,
   ],

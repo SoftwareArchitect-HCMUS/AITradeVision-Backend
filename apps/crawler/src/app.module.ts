@@ -4,7 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { CrawlerModule } from './crawler/crawler.module';
 import { DatabaseModule } from './database/database.module';
-import { MinioModule } from './minio/minio.module';
 import { RedisModule } from './redis/redis.module';
 
 @Module({
@@ -36,7 +35,6 @@ import { RedisModule } from './redis/redis.module';
     }),
     RedisModule,
     DatabaseModule,
-    MinioModule,
     CrawlerModule,
   ],
 })

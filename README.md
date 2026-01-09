@@ -8,22 +8,19 @@ This platform provides real-time cryptocurrency market data, financial news aggr
 
 - **Real-time price data** from Binance WebSocket
 - **Automated news crawling** from major financial sources (Bloomberg, Reuters, Cointelegraph, etc.)
-- **AI-powered analysis** using Google Gemini API
+- **AI-powered analysis** using Groq API
 - **REST API & WebSocket** for client applications
-- **Vector search** for semantic news/article search
 
 ## Features
 
 - 🔄 **Real-time Price Updates**: WebSocket streaming from Binance (Futures & Spot)
 - 📰 **News Aggregation**: Automated crawling from 6+ sources every 5 minutes
-- 🤖 **AI Analysis**: Sentiment analysis, summaries, and insights using Gemini
-- 🔍 **Semantic Search**: Vector-based search using Qdrant for similar articles
+- 🤖 **AI Analysis**: Sentiment analysis, summaries, and insights using Groq
 - 📊 **Time-Series Data**: Optimized storage with TimescaleDB for OHLCV and ticks
 - 🔐 **JWT Authentication**: Secure API access with user management
 - 🐳 **Docker Ready**: Full Docker Compose setup for easy deployment
 - 📦 **Monorepo**: pnpm workspaces for shared code and dependencies
 - 🔄 **Event-Driven**: Redis Pub/Sub for service communication
-- 📦 **Object Storage**: MinIO for raw HTML storage and audit
 
 ## Architecture
 
@@ -52,9 +49,7 @@ The system consists of 4 main microservices:
 - **Databases**: 
   - PostgreSQL (main database for users, news, AI insights)
   - TimescaleDB (time-series data for OHLCV and ticks)
-  - Qdrant (vector database for embeddings)
-- **Object Storage**: MinIO (for raw HTML storage)
-- **AI**: Google Gemini API
+- **AI**: Groq API
 - **Package Manager**: pnpm (monorepo with workspaces)
 
 ## Prerequisites
@@ -67,7 +62,7 @@ The system consists of 4 main microservices:
   export PATH="$HOME/.nvm/versions/node/v22.14.0/bin:$PATH"
   ```
 - **Node.js** (>= 18.0.0) - Runtime environment
-- **Gemini API key** - Get from https://makersuite.google.com/app/apikey (for AI features)
+- **Groq API key** - Get from https://console.groq.com/keys (for AI features)
 
 ## Quick Start
 
@@ -103,26 +98,15 @@ TIMESCALE_DB=timescale_db
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# MinIO
-MINIO_ENDPOINT=localhost
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=minioadmin
-MINIO_BUCKET=raw-html
-
 # JWT
 JWT_SECRET=your-super-secret-jwt-key-change-in-production
 
-# Gemini API (REQUIRED for AI features)
-GEMINI_API_KEY=your-gemini-api-key-here
-
-# Qdrant
-QDRANT_HOST=localhost
-QDRANT_PORT=6333
+# Groq API (REQUIRED for AI features)
+GROQ_API_KEY=your-groq-api-key-here
 EOF
 ```
 
-**Important**: Replace `GEMINI_API_KEY` with your actual API key from https://makersuite.google.com/app/apikey
+**Important**: Replace `GROQ_API_KEY` with your actual API key from https://console.groq.com/keys
 
 3. **Start all services with Docker Compose**
 
@@ -134,8 +118,6 @@ This will start:
 - Redis (port 6379)
 - PostgreSQL (port 5432)
 - TimescaleDB (port 5433)
-- Qdrant (ports 6333, 6334)
-- MinIO (ports 9000, 9001)
 - All 4 NestJS services
 
 4. **Access services**
@@ -143,8 +125,6 @@ This will start:
 - Web Server API: http://localhost:3000
 - **Swagger API Documentation**: http://localhost:3000/api
 - AI Service: http://localhost:3001
-- MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
-- Qdrant Dashboard: http://localhost:6333/dashboard
 
 ## API Documentation
 
@@ -175,7 +155,6 @@ The Swagger documentation provides:
 ### AI Insights (AI Service - Port 3001)
 
 - `GET /ai/insights?symbol=BTCUSDT` - Get AI insights for a symbol
-- `GET /ai/search?query=bitcoin price prediction&limit=10` - Search similar news/articles
 
 ## WebSocket
 
@@ -202,19 +181,17 @@ socket.emit('unsubscribe_price', { symbol: 'BTCUSDT' });
 
 **Responsibilities:**
 - Crawls news from: Bloomberg, Reuters, Cointelegraph, Yahoo Finance, Investing.com, CNBC Crypto
-- Uses multi-strategy extraction (CSS selectors, XPath, generic readability algorithm)
-- Stores raw HTML in MinIO for audit purposes
+- Uses multi-strategy extraction (CSS selectors, XPath, generic readability algorithm, AI-generated templates)
 - Stores cleaned news in PostgreSQL
 - Publishes `news_created` events to Redis Pub/Sub channel
 
 **How it works:**
 1. Scheduled crawl every 5 minutes
 2. Fetches article links from news source pages
-3. Extracts content using source-specific strategies
-4. Uploads raw HTML to MinIO
-5. Extracts cryptocurrency tickers from content
-6. Saves to PostgreSQL
-7. Publishes event to Redis for AI service
+3. Extracts content using source-specific strategies or AI-generated templates
+4. Extracts cryptocurrency tickers from content (with AI fallback)
+5. Saves to PostgreSQL
+6. Publishes event to Redis for AI service
 
 ### Price Collector Service (Port 3003)
 
@@ -255,19 +232,15 @@ socket.emit('unsubscribe_price', { symbol: 'BTCUSDT' });
 **Responsibilities:**
 - Listens to `news_created` events from Redis
 - Fetches historical price data from TimescaleDB
-- Analyzes news with Gemini API (sentiment, summary, reasoning)
-- Generates embeddings using Gemini embedding model
-- Stores embeddings in Qdrant vector database
+- Analyzes news with Groq API (sentiment, summary, reasoning)
 - Stores AI insights in PostgreSQL
 
 **How it works:**
 1. Subscribes to `news_created` Redis channel
 2. When news is created, fetches related price data
-3. Sends news + price context to Gemini API
+3. Sends news + price context to Groq API
 4. Receives analysis (sentiment, summary, impact prediction)
-5. Generates embedding vector
-6. Stores in Qdrant for semantic search
-7. Saves insights to PostgreSQL
+5. Saves insights to PostgreSQL
 
 ## Database Schemas
 
@@ -303,7 +276,7 @@ Chỉ chạy infrastructure bằng Docker, còn NestJS services chạy local:
 
 ```bash
 # Start infrastructure services
-docker compose up -d redis postgres_main timescaledb qdrant minio
+docker compose up -d redis postgres_main timescaledb
 
 # Verify services are running
 docker compose ps
@@ -408,9 +381,9 @@ docker compose exec timescaledb psql -U timescale_user -d timescale_db -f /docke
    - Test connection: `docker compose exec redis redis-cli ping`
    - Verify `REDIS_HOST` and `REDIS_PORT` in `.env`
 
-4. **Gemini API errors**
-   - Verify `GEMINI_API_KEY` is set correctly in `.env`
-   - Check API key is valid at https://makersuite.google.com/app/apikey
+4. **Groq API errors**
+   - Verify `GROQ_API_KEY` is set correctly in `.env`
+   - Check API key is valid at https://console.groq.com/keys
    - AI service will show warning if key is missing but will still start
 
 5. **pnpm command not found**
@@ -447,7 +420,6 @@ docker compose exec timescaledb psql -U timescale_user -d timescale_db -f /docke
 │   │   ├── src/
 │   │   │   ├── crawler/      # Crawler logic & extraction strategies
 │   │   │   ├── database/    # Database entities
-│   │   │   ├── minio/       # MinIO integration
 │   │   │   └── redis/       # Redis Pub/Sub
 │   │   ├── Dockerfile
 │   │   └── package.json
@@ -469,8 +441,7 @@ docker compose exec timescaledb psql -U timescale_user -d timescale_db -f /docke
 │   └── ai-service/          # AI analysis service (port 3001)
 │       ├── src/
 │       │   ├── ai/          # AI endpoints
-│       │   ├── gemini/      # Gemini API integration
-│       │   ├── qdrant/     # Vector database
+│       │   ├── groq/        # Groq API integration
 │       │   ├── news-processor/ # News event processor
 │       │   └── redis/       # Redis Pub/Sub
 │       ├── Dockerfile
@@ -556,8 +527,8 @@ curl "http://localhost:3001/ai/insights?symbol=BTCUSDT"
 
 1. **Crawler** crawls a news article about Bitcoin
 2. **Crawler** publishes `news_created` event to Redis
-3. **AI Service** receives event, analyzes news with Gemini
-4. **AI Service** stores insights in PostgreSQL and embeddings in Qdrant
+3. **AI Service** receives event, analyzes news with Groq
+4. **AI Service** stores insights in PostgreSQL
 5. **Price Collector** receives price update from Binance
 6. **Price Collector** stores in TimescaleDB and publishes to Redis
 7. **Web Server** receives price update, broadcasts to WebSocket clients
