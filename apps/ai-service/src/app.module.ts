@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AIController } from './ai/ai.controller';
-import { AIService } from './ai/ai.service';
 import { NewsProcessorModule } from './news-processor/news-processor.module';
 import { GroqModule } from './groq/groq.module';
 import { DatabaseModule } from './database/database.module';
@@ -46,8 +44,6 @@ import { RedisModule } from './redis/redis.module';
     GroqModule,
     NewsProcessorModule,
   ],
-  controllers: [AIController],
-  providers: [AIService],
 })
 export class AppModule {}
 
