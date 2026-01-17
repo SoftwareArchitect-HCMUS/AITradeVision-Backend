@@ -59,6 +59,7 @@ export class AuthService {
         id: savedUser.id,
         email: savedUser.email,
         username: savedUser.username,
+        isVIP: savedUser.isVIP || false,
       },
     };
   }
@@ -96,6 +97,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         username: user.username,
+        isVIP: user.isVIP || false,
       },
     };
   }
@@ -107,6 +109,40 @@ export class AuthService {
    */
   async validateUser(userId: number): Promise<UserEntity | null> {
     return this.userRepository.findOne({ where: { id: userId } });
+  }
+
+  /**
+   * Upgrade user to VIP (Demo feature)
+   * @param userId - User ID
+   * @returns Updated authentication response
+   */
+  async upgradeToVIP(userId: number): Promise<AuthResponseDto> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Update user to VIP
+    user.isVIP = true;
+    await this.userRepository.save(user);
+
+    // Generate new JWT token with updated info
+    const token = this.jwtService.sign({
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+    });
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        isVIP: user.isVIP,
+      },
+    };
   }
 }
 

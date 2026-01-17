@@ -40,6 +40,7 @@ export class AuthResponseDto {
     id: number;
     email: string;
     username: string;
+    isVIP: boolean;
   };
 }
 

@@ -23,6 +23,9 @@ export class UserEntity {
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
+  @Column({ type: 'boolean', name: 'is_vip', default: false })
+  isVIP!: boolean;
+
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 }

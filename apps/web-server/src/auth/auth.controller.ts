@@ -1,8 +1,9 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, AuthResponseDto } from '@shared/dto/auth.dto';
 import { TBaseDTO } from '@shared/dto/base.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 /**
  * Authentication controller
@@ -71,6 +72,38 @@ export class AuthController {
       return TBaseDTO.success(result, 'Login successful');
     } catch (error) {
       return TBaseDTO.error(error.message || 'Login failed');
+    }
+  }
+
+  /**
+   * Upgrade user to VIP (Demo feature)
+   * @returns Updated auth response with VIP status
+   */
+  @Post('upgrade-vip')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Upgrade to VIP', description: 'Upgrade current user to VIP status (demo feature)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Upgraded to VIP successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { $ref: '#/components/schemas/AuthResponseDto' },
+        message: { type: 'string', example: 'Upgraded to VIP successfully' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async upgradeToVIP(@Request() req: any): Promise<TBaseDTO<AuthResponseDto>> {
+    try {
+      const userId = req.user.userId;
+      const result = await this.authService.upgradeToVIP(userId);
+      return TBaseDTO.success(result, 'Upgraded to VIP successfully');
+    } catch (error) {
+      return TBaseDTO.error(error.message || 'Failed to upgrade to VIP');
     }
   }
 }
