@@ -17,6 +17,37 @@ export class MarketController {
   constructor(private readonly marketService: MarketService) {}
 
   /**
+   * Get list of available trading symbols
+   * @returns List of supported symbols
+   */
+  @Get('symbols')
+  @ApiOperation({ summary: 'Get available trading symbols', description: 'Retrieve list of all trading symbols available in the system' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Symbols retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { 
+          type: 'array',
+          items: { type: 'string' },
+          example: ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
+  async getSymbols(): Promise<TBaseDTO<string[]>> {
+    try {
+      const data = await this.marketService.getSymbols();
+      return TBaseDTO.success(data);
+    } catch (error) {
+      return TBaseDTO.error(error.message || 'Failed to fetch symbols');
+    }
+  }
+
+  /**
    * Get market history (OHLCV data)
    * @param query - Query parameters
    * @returns Market history response

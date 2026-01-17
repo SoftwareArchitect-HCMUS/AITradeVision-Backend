@@ -24,19 +24,21 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install pnpm in production stage
+RUN npm install -g pnpm
+
 # Copy workspace files
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml tsconfig.json ./
 COPY libs ./libs
 COPY apps/price-collector ./apps/price-collector
 
-# Copy node_modules from builder (includes built native modules)
-COPY --from=builder /app/node_modules ./node_modules
+# Install production dependencies only
+RUN pnpm install --prod
 
-# Copy built files
+# Copy built files from builder
 COPY --from=builder /app/libs/shared/dist ./libs/shared/dist
 COPY --from=builder /app/apps/price-collector/dist ./apps/price-collector/dist
 
 WORKDIR /app
 
 CMD ["node", "apps/price-collector/dist/apps/price-collector/src/main.js"]
-

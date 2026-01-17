@@ -21,6 +21,21 @@ export class MarketService {
   ) {}
 
   /**
+   * Get list of available trading symbols
+   * @returns Array of symbol strings
+   */
+  async getSymbols(): Promise<string[]> {
+    const query = `
+      SELECT DISTINCT symbol
+      FROM ohlcv
+      ORDER BY symbol
+    `;
+
+    const result = await this.timescaleConnection.query(query);
+    return result.map((row: any) => row.symbol);
+  }
+
+  /**
    * Get historical OHLCV data
    * @param dto - Market history query parameters
    * @returns Array of OHLCV data points

@@ -47,7 +47,7 @@ services:
       POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_pass}
       POSTGRES_DB: ${TIMESCALE_DB:-timescale_db}
     ports:
-      - "5433:5432"
+      - "5430:5432"
     volumes:
       - timescaledb-data:/var/lib/postgresql/data
       - ./scripts/init-timescale-db.sql:/docker-entrypoint-initdb.d/init.sql
