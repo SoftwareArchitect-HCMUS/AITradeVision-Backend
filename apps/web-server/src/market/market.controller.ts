@@ -93,6 +93,37 @@ export class MarketController {
   }
 
   /**
+   * Get supported trading symbols
+   * @returns Supported trading symbols response
+   */
+  @Get('symbols')
+  @ApiOperation({ summary: 'Get supported trading symbols', description: 'Get list of all supported trading symbols in the system' })
+  @ApiResponse({
+    status: 200,
+    description: 'Supported symbols retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: {
+          type: 'array',
+          items: { type: 'string' },
+          example: ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
+  async getSupportedSymbols(): Promise<TBaseDTO<string[]>> {
+    try {
+      const data = await this.marketService.getSupportedSymbols();
+      return TBaseDTO.success(data);
+    } catch (error) {
+      return TBaseDTO.error(error.message || 'Failed to fetch supported symbols');
+    }
+  }
+
+  /**
    * Get real-time price
    * @param symbol - Trading symbol
    * @returns Real-time price response
@@ -100,8 +131,8 @@ export class MarketController {
   @Get('realtime')
   @ApiOperation({ summary: 'Get real-time price', description: 'Get the latest price for a trading symbol' })
   @ApiQuery({ name: 'symbol', required: true, description: 'Trading symbol (e.g., BTCUSDT)', example: 'BTCUSDT' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Real-time price retrieved successfully',
     schema: {
       type: 'object',
