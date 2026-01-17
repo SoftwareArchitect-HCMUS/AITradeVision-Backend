@@ -102,6 +102,21 @@ export class MarketService {
   }
 
   /**
+   * Get supported trading symbols
+   * @returns Array of supported trading symbols
+   */
+  async getSupportedSymbols(): Promise<string[]> {
+    const query = `
+      SELECT DISTINCT symbol
+      FROM ohlcv
+      ORDER BY symbol
+    `;
+
+    const result = await this.timescaleConnection.query(query);
+    return result.map((row: any) => row.symbol);
+  }
+
+  /**
    * Get historical OHLCV data from Binance API (with Redis cache)
    * This method fetches data directly from Binance and caches it in Redis
    * @param dto - Market history query parameters
