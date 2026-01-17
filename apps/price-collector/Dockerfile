@@ -29,6 +29,10 @@ COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml tsconfig.json ./
 COPY libs ./libs
 COPY apps/price-collector ./apps/price-collector
 
+RUN npm install -g pnpm
+
+RUN pnpm install --prod
+
 # Copy node_modules from builder (includes built native modules)
 COPY --from=builder /app/node_modules ./node_modules
 
