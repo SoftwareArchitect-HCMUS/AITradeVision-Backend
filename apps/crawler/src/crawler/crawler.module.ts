@@ -25,11 +25,11 @@ import { TemplateGeneratorService } from './extraction/template-generator.servic
       defaultJobOptions: {
         removeOnComplete: {
           age: 3600, // Keep completed jobs for 1 hour (3600 seconds)
-          count: 50, // Keep max 50 completed jobs (giảm từ 100 xuống 50)
+          count: 50, // Keep max 50 completed jobs
         },
         removeOnFail: {
           age: 86400, // Keep failed jobs for 24 hours (86400 seconds)
-          count: 20, // Keep max 20 failed jobs (giảm từ 50 xuống 20)
+          count: 20, // Keep max 20 failed jobs
         },
         attempts: 3, // Retry failed jobs 3 times
         backoff: {
