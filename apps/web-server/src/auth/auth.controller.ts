@@ -66,12 +66,8 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto): Promise<TBaseDTO<AuthResponseDto>> {
-    try {
-      const result = await this.authService.login(loginDto);
-      return TBaseDTO.success(result, 'Login successful');
-    } catch (error) {
-      return TBaseDTO.error(error.message || 'Login failed');
-    }
+    const result = await this.authService.login(loginDto);
+    return TBaseDTO.success(result, 'Login successful');
   }
 }
 
