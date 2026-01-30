@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UserEntity } from './entities/user.entity';
-import { RegisterDto, LoginDto, AuthResponseDto } from '@shared/dto/auth.dto';
+import { RegisterDto, LoginDto, AuthResponseDto, UpgradeVipResponseDto } from '@shared/dto/auth.dto';
 
 /**
  * Authentication service
@@ -96,6 +96,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         username: user.username,
+        isVip: user.isVip,
       },
     };
   }
@@ -107,6 +108,29 @@ export class AuthService {
    */
   async validateUser(userId: number): Promise<UserEntity | null> {
     return this.userRepository.findOne({ where: { id: userId } });
+  }
+
+  async upgradeVip(userId: number): Promise<UpgradeVipResponseDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    user.isVip = true;
+    const savedUser = await this.userRepository.save(user);
+
+    return {
+      success: true,
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        username: savedUser.username,
+        isVip: savedUser.isVip,
+      },
+    };
   }
 }
 

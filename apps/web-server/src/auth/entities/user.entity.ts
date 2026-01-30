@@ -20,6 +20,9 @@ export class UserEntity {
   @Column({ type: 'varchar', length: 255, name: 'password_hash' })
   passwordHash!: string;
 
+  @Column({ type: 'boolean', name: 'is_vip', default: false })
+  isVip!: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 
