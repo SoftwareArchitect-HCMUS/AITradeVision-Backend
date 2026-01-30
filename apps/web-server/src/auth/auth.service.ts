@@ -1,10 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UserEntity } from './entities/user.entity';
-import { RegisterDto, LoginDto, AuthResponseDto, UpgradeVipResponseDto } from '@shared/dto/auth.dto';
+import { RegisterDto, LoginDto, AuthResponseDto, UpgradeVipResponseDto, UpdateProfileDto, UpdateProfileResponseDto } from '@shared/dto/auth.dto';
 
 /**
  * Authentication service
@@ -120,6 +120,59 @@ export class AuthService {
     }
 
     user.isVip = true;
+    const savedUser = await this.userRepository.save(user);
+
+    return {
+      success: true,
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        username: savedUser.username,
+        isVip: savedUser.isVip,
+      },
+    };
+  }
+
+  async updateProfile(userId: number, updateProfileDto: UpdateProfileDto): Promise<UpdateProfileResponseDto> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (updateProfileDto.username) {
+      const existingUsername = await this.userRepository.findOne({
+        where: { username: updateProfileDto.username },
+      });
+      if (existingUsername && existingUsername.id !== userId) {
+        throw new BadRequestException('Username already exists');
+      }
+      user.username = updateProfileDto.username;
+    }
+
+    if (updateProfileDto.email) {
+      const existingEmail = await this.userRepository.findOne({
+        where: { email: updateProfileDto.email },
+      });
+      if (existingEmail && existingEmail.id !== userId) {
+        throw new BadRequestException('Email already exists');
+      }
+      user.email = updateProfileDto.email;
+    }
+
+    if (updateProfileDto.newPassword) {
+      if (!updateProfileDto.currentPassword) {
+        throw new BadRequestException('Current password is required');
+      }
+      const isPasswordValid = await bcrypt.compare(updateProfileDto.currentPassword, user.passwordHash);
+      if (!isPasswordValid) {
+        throw new BadRequestException('Current password is incorrect');
+      }
+      user.passwordHash = await bcrypt.hash(updateProfileDto.newPassword, this.SALT_ROUNDS);
+    }
+
     const savedUser = await this.userRepository.save(user);
 
     return {

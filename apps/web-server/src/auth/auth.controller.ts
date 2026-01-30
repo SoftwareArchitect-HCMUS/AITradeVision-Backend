@@ -1,7 +1,7 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, AuthResponseDto, UpgradeVipResponseDto, PaymentDto } from '@shared/dto/auth.dto';
+import { RegisterDto, LoginDto, AuthResponseDto, UpgradeVipResponseDto, PaymentDto, UpdateProfileDto, UpdateProfileResponseDto } from '@shared/dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { TBaseDTO } from '@shared/dto/base.dto';
 
@@ -94,6 +94,31 @@ export class AuthController {
   async upgradeVip(@Request() req: any, @Body() paymentDto: PaymentDto): Promise<TBaseDTO<UpgradeVipResponseDto>> {
     const result = await this.authService.upgradeVip(req.user.userId);
     return TBaseDTO.success(result, 'VIP upgrade successful');
+  }
+
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user profile', description: 'Update user profile information' })
+  @ApiBody({ type: UpdateProfileDto })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Profile updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        data: { $ref: '#/components/schemas/UpdateProfileResponseDto' },
+        message: { type: 'string', example: 'Profile updated successfully' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid input or duplicate email/username' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async updateProfile(@Request() req: any, @Body() updateProfileDto: UpdateProfileDto): Promise<TBaseDTO<UpdateProfileResponseDto>> {
+    const result = await this.authService.updateProfile(req.user.userId, updateProfileDto);
+    return TBaseDTO.success(result, 'Profile updated successfully');
   }
 }
 
