@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
 
 /**
  * DTO for user registration
@@ -66,5 +66,35 @@ export class PaymentDto {
   @IsString()
   @IsNotEmpty()
   cvv!: string;
+}
+
+export class UpdateProfileDto {
+  @IsString()
+  @IsOptional()
+  username?: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @MinLength(6)
+  @IsOptional()
+  currentPassword?: string;
+
+  @IsString()
+  @MinLength(6)
+  @IsOptional()
+  newPassword?: string;
+}
+
+export class UpdateProfileResponseDto {
+  success!: boolean;
+  user!: {
+    id: number;
+    email: string;
+    username: string;
+    isVip: boolean;
+  };
 }
 
