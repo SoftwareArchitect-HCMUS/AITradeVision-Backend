@@ -40,6 +40,31 @@ export class AuthResponseDto {
     id: number;
     email: string;
     username: string;
+    isVip?: boolean;
   };
+}
+
+export class UpgradeVipResponseDto {
+  success!: boolean;
+  user!: {
+    id: number;
+    email: string;
+    username: string;
+    isVip: boolean;
+  };
+}
+
+export class PaymentDto {
+  @IsString()
+  @IsNotEmpty()
+  cardNumber!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  expiry!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  cvv!: string;
 }
 

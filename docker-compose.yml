@@ -29,7 +29,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres-main-data:/var/lib/postgresql/data
-      - ./scripts/init-main-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./scripts/init-main-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./scripts/migrations.sql:/docker-entrypoint-initdb.d/02-migrations.sql
     networks:
       - crypto-network
     healthcheck:
