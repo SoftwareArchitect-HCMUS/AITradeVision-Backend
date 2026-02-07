@@ -34,14 +34,10 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Invalid input or user already exists' })
+  @ApiResponse({ status: 409, description: 'User with this email or username already exists' })
   async register(@Body() registerDto: RegisterDto): Promise<TBaseDTO<AuthResponseDto>> {
-    try {
-      const result = await this.authService.register(registerDto);
-      return TBaseDTO.success(result, 'User registered successfully');
-    } catch (error) {
-      return TBaseDTO.error(error.message || 'Registration failed');
-    }
+    const result = await this.authService.register(registerDto);
+    return TBaseDTO.success(result, 'User registered successfully');
   }
 
   /**

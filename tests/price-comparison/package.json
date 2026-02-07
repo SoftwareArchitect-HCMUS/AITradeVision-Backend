@@ -1,0 +1,19 @@
+{
+  "name": "price-comparison-test",
+  "version": "1.0.0",
+  "description": "Test script to compare Binance and Local WebSocket prices",
+  "main": "compare_prices.ts",
+  "scripts": {
+    "test": "ts-node compare_prices.ts"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "chalk": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10",
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
