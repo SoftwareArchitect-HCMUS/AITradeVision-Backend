@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -25,13 +25,12 @@ export class AuthService {
    * @returns Authentication response
    */
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-    // Check if user already exists
     const existingUser = await this.userRepository.findOne({
       where: [{ email: registerDto.email }, { username: registerDto.username }],
     });
 
     if (existingUser) {
-      throw new UnauthorizedException('User with this email or username already exists');
+      throw new ConflictException('User with this email or username already exists');
     }
 
     // Hash password
