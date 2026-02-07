@@ -16,8 +16,11 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
   private readonly maxReconnectAttempts = 10;
   private readonly reconnectDelay = 5000; // 5 seconds
   private symbols: string[] = [];
-  private readonly timeframes: string[] = ['1m', '5m', '1h', '1d']; // Supported Kline intervals
+  private readonly timeframes: string[] = ['1m', '5m', '1h', '1d'];
   private isShuttingDown = false;
+  private readonly THROTTLE_MS = 100;
+  private lastPublishTime: Map<string, number> = new Map();
+  private ticker24hData: Map<string, { change24h: number; volume24h: number }> = new Map();
 
   constructor(
     private redisService: RedisService,
@@ -66,6 +69,7 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
         for (const timeframe of this.timeframes) {
           streams.push(`${symbol.toLowerCase()}@kline_${timeframe}`);
         }
+        streams.push(`${symbol.toLowerCase()}@ticker`);
       }
       const streamsPath = streams.join('/');
       const url = `${process.env.BINANCE_WS_URL || 'wss://fstream.binance.com/stream'}?streams=${streamsPath}`;
@@ -149,17 +153,25 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
     try {
       const data = JSON.parse(message);
 
+      if (data.e === '24hrTicker') {
+        const symbol = data.s.toUpperCase();
+        this.ticker24hData.set(symbol, {
+          change24h: parseFloat(data.P),
+          volume24h: parseFloat(data.q),
+        });
+        return;
+      }
+
       if (data.e === 'kline' && data.k) {
         const kline = data.k;
         const symbol = kline.s.toUpperCase();
-        const interval = kline.i; // e.g., '1m', '5m'
-        const isClosed = kline.x; // true when candle is closed
+        const interval = kline.i;
+        const isClosed = kline.x;
         
-        // Extract OHLCV data
         const ohlcv: OHLCVData = {
           symbol,
           interval,
-          timestamp: kline.t, // Open time
+          timestamp: kline.t,
           open: parseFloat(kline.o),
           high: parseFloat(kline.h),
           low: parseFloat(kline.l),
@@ -167,36 +179,45 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
           volume: parseFloat(kline.v),
         };
 
-        // Store OHLCV in database (only when candle is closed for accuracy)
-        if (isClosed) {
-          await this.databaseService.insertOHLCV(ohlcv);
+        const now = Date.now();
+        const lastPublish = this.lastPublishTime.get(symbol) || 0;
+        
+        if (now - lastPublish >= this.THROTTLE_MS) {
+          this.lastPublishTime.set(symbol, now);
+          
+          const tickerData = this.ticker24hData.get(symbol);
+          
+          const priceUpdate: PriceUpdate = {
+            symbol,
+            price: ohlcv.close,
+            timestamp: kline.T || Date.now(),
+            volume: ohlcv.volume,
+            change24h: tickerData?.change24h,
+            volume24h: tickerData?.volume24h,
+          };
+
+          this.redisService.publishPriceUpdate(priceUpdate).catch(err => 
+              this.logger.error(`Failed to publish price update for ${symbol}`, err)
+          );
         }
 
-        // Create tick data from close price (for backward compatibility)
-        const tick: TickData = {
-          symbol,
-          price: ohlcv.close,
-          volume: ohlcv.volume,
-          timestamp: kline.T || Date.now(), // Close time or current time
-          side: ohlcv.close >= ohlcv.open ? 'buy' : 'sell', // Approximate side based on price movement
-        };
-
-        // Store tick in database (only when candle is closed)
         if (isClosed) {
-          await this.databaseService.insertTick(tick);
+          this.databaseService.insertOHLCV(ohlcv).catch(err => 
+            this.logger.error(`Failed to insert OHLCV for ${symbol}`, err)
+          );
+
+          const tick: TickData = {
+            symbol,
+            price: ohlcv.close,
+            volume: ohlcv.volume,
+            timestamp: kline.T || Date.now(),
+            side: ohlcv.close >= ohlcv.open ? 'buy' : 'sell',
+          };
+
+          this.databaseService.insertTick(tick).catch(err =>
+            this.logger.error(`Failed to insert Tick for ${symbol}`, err)
+          );
         }
-
-        // Publish price update to Redis (always, for real-time updates)
-        const priceUpdate: PriceUpdate = {
-          symbol,
-          price: ohlcv.close,
-          timestamp: kline.T || Date.now(),
-          volume: ohlcv.volume,
-        };
-
-        console.log('Price update:', priceUpdate);
-        await this.redisService.publishPriceUpdate(priceUpdate);
-        console.log('Price update published to Redis');
       }
     } catch (error) {
       this.logger.error('Error handling futures message', error);
@@ -212,17 +233,25 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
       const payload = JSON.parse(message);
       const data = payload.data || payload;
 
+      if (data.e === '24hrTicker') {
+        const symbol = data.s.toUpperCase();
+        this.ticker24hData.set(symbol, {
+          change24h: parseFloat(data.P),
+          volume24h: parseFloat(data.q),
+        });
+        return;
+      }
+
       if (data.e === 'kline' && data.k) {
         const kline = data.k;
         const symbol = kline.s.toUpperCase();
-        const interval = kline.i; // e.g., '1m', '5m'
-        const isClosed = kline.x; // true when candle is closed
+        const interval = kline.i;
+        const isClosed = kline.x;
         
-        // Extract OHLCV data
         const ohlcv: OHLCVData = {
           symbol,
           interval,
-          timestamp: kline.t, // Open time
+          timestamp: kline.t,
           open: parseFloat(kline.o),
           high: parseFloat(kline.h),
           low: parseFloat(kline.l),
@@ -230,35 +259,45 @@ export class BinanceService implements OnModuleInit, OnModuleDestroy {
           volume: parseFloat(kline.v),
         };
 
-        // Store OHLCV in database (only when candle is closed for accuracy)
-        console.log('isClosed:', isClosed);
-        if (isClosed) {
-          await this.databaseService.insertOHLCV(ohlcv);
+        const now = Date.now();
+        const lastPublish = this.lastPublishTime.get(symbol) || 0;
+        
+        if (now - lastPublish >= this.THROTTLE_MS) {
+          this.lastPublishTime.set(symbol, now);
+          
+          const tickerData = this.ticker24hData.get(symbol);
+          
+          const priceUpdate: PriceUpdate = {
+            symbol,
+            price: ohlcv.close,
+            timestamp: kline.T || Date.now(),
+            volume: ohlcv.volume,
+            change24h: tickerData?.change24h,
+            volume24h: tickerData?.volume24h,
+          };
+
+          this.redisService.publishPriceUpdate(priceUpdate).catch(err =>
+               this.logger.error(`Failed to publish spot price update for ${symbol}`, err)
+          );
         }
 
-        // Create tick data from close price (for backward compatibility)
-        const tick: TickData = {
-          symbol,
-          price: ohlcv.close,
-          volume: ohlcv.volume,
-          timestamp: kline.T || Date.now(), // Close time or current time
-          side: ohlcv.close >= ohlcv.open ? 'buy' : 'sell', // Approximate side based on price movement
-        };
-
-        // Store tick in database (only when candle is closed)
         if (isClosed) {
-          await this.databaseService.insertTick(tick);
+          this.databaseService.insertOHLCV(ohlcv).catch(err =>
+             this.logger.error(`Failed to insert Spot OHLCV for ${symbol}`, err)
+          );
+
+          const tick: TickData = {
+            symbol,
+            price: ohlcv.close,
+            volume: ohlcv.volume,
+            timestamp: kline.T || Date.now(),
+            side: ohlcv.close >= ohlcv.open ? 'buy' : 'sell',
+          };
+
+          this.databaseService.insertTick(tick).catch(err =>
+             this.logger.error(`Failed to insert Spot Tick for ${symbol}`, err)
+          );
         }
-
-        // Publish price update to Redis (always, for real-time updates)
-        const priceUpdate: PriceUpdate = {
-          symbol,
-          price: ohlcv.close,
-          timestamp: kline.T || Date.now(),
-          volume: ohlcv.volume,
-        };
-
-        await this.redisService.publishPriceUpdate(priceUpdate);
       }
     } catch (error) {
       this.logger.error('Error handling spot message', error);
