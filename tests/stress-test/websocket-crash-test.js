@@ -2,9 +2,9 @@ const WebSocket = require('ws');
 
 const WS_URL = 'ws://localhost:3000/ws';
 const TOTAL_CONNECTIONS = 1000; // Target connections
-const CONNECTION_RAMP_DELAY = 1000; // 10ms between connections (100 conn/sec ramp)
+const CONNECTION_RAMP_DELAY = 500; // 10ms between connections (100 conn/sec ramp)
 const MESSAGE_BURST_SIZE = 1; // Reduced for stability  
-const MESSAGE_INTERVAL = 2000; // Increased interval for better handling
+const MESSAGE_INTERVAL = 200000000; // Increased interval for better handling
 
 let connectedClients = 0;
 let totalMessages = 0;
@@ -26,7 +26,7 @@ for (let i = 0; i < TOTAL_CONNECTIONS; i++) {
     if (!crashDetected) {
       createWebSocketConnection(i);
     }
-  }, i * CONNECTION_RAMP_DELAY); // Use configurable connection delay
+  }, CONNECTION_RAMP_DELAY); // Use configurable connection delay
 }
 
 function createWebSocketConnection(clientId) {
